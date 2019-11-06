@@ -1,0 +1,171 @@
+library(igraph)
+library(ndtv)
+library(asnipe)
+library(visNetwork)
+library(popgraph)
+library(ggmap)
+library(tidyverse)
+
+birddat = read.csv("RFID_Records_fixed.csv", colClasses = c("RFID" ="character"))
+dat.dowo = read.csv("C:/Users/Annie Madsen/Documents/Madsen/Pioneers Park Project/LOT Paper/Network/conDOWOadjmat.csv")
+dat.wbnu = read.csv("C:/Users/Annie Madsen/Documents/Madsen/Pioneers Park Project/LOT Paper/Network/conWBNUadjmat.csv")
+
+## Data cleaning 01/28/2019
+##packages
+
+require(tidyverse)
+require(data.table)
+setwd("C:/Users/Laura/Documents/UNL/Field_Work/Winter2018-2019/WinterFeederProject/FeederData/2019FeederData")
+#Read files
+##Read all csv files in the working directory, list as string in filenames
+filenames <- list.files(recursive = TRUE)
+##Function to add path names as a variable
+read_csv_filename <- function(filename){
+  ret <- read.csv(filename, header = FALSE, col.names = c("V1", "V2", "V3"), colClasses = c("character","character","character"))
+  ret$Source <- filename
+  ret
+}
+RFIDdata <- as.data.frame(rbindlist(lapply(filenames, read_csv_filename), fill = TRUE))
+RFIDdata <- RFIDdata %>%
+  separate(Source, into = c("Folder", "Logger"), sep = "/") %>%
+  select(-Folder)
+RFIDdata$Logger <- gsub('.CSV', '', RFIDdata$Logger)##remove filetype text
+RFIDdata$Logger <- gsub('.csv', '', RFIDdata$Logger)
+colnames(RFIDdata)[c(1:3)] <- c("Datetime", "AntennaRFID", "Nutty_error")## rename columns
+RFIDdata <- RFIDdata[,c(4,1,2,3)]##rearrange columns
+## Fix antenna error
+RFIDdata$AntennaRFID <- as.character(RFIDdata$AntennaRFID)
+RFIDdata$AntennaRFID <- ifelse(nchar(RFIDdata$AntennaRFID) == 11, paste0("0", RFIDdata$AntennaRFID), paste0(RFIDdata$AntennaRFID))
+########### 
+## Fix Nutty_error
+### remove blank rows
+RFIDdata <- RFIDdata %>%
+  filter(nchar(AntennaRFID) > 11)
+### separate datetime and RFID in rows with nutty_error
+errors <- RFIDdata %>%
+  filter(nchar(AntennaRFID) > 12) %>%
+  separate(AntennaRFID, into = c("AntennaRFID2", "Datetime2"), sep = 12)
+## pull one column pair into a separate df
+fixed <- errors %>%
+  select(-Datetime2, -Nutty_error)
+colnames(fixed)[colnames(fixed) == "AntennaRFID2"] <- "AntennaRFID"##fix colnames to match
+## pull the other column pair into separate df
+nutty <- errors %>%
+  select(-Datetime, -AntennaRFID2)
+colnames(nutty)[colnames(nutty) == "Nutty_error"] <- "AntennaRFID"##fix colnames to match
+colnames(nutty)[colnames(nutty) == "Datetime2"] <- "Datetime"
+## grab correct values from original df
+normal <- RFIDdata %>%
+  filter(nchar(AntennaRFID) == 12) %>%
+  select(-Nutty_error)
+## bind them all together
+fixedrows <- rbind(fixed, nutty, normal)
+## fix antenna error
+fixedrows$AntennaRFID <- ifelse(nchar(fixedrows$AntennaRFID) == 11, paste0("0", fixedrows$AntennaRFID), paste0(fixedrows$AntennaRFID))
+##########
+require(lubridate)
+RFIDdf <- fixedrows %>%
+  separate(AntennaRFID, into = c("Antenna", "RFID"), sep = 2)
+RFIDdf$Datetime <- ifelse(nchar(RFIDdf$Datetime) == 9, paste0("0", RFIDdf$Datetime), paste0(RFIDdf$Datetime))
+RFIDdf$Datetime <- as.POSIXct(RFIDdf$Datetime, format = "%m%d%H%M%S")
+RFIDdf$RFID <- as.character(RFIDdf$RFID)
+demo <- read.csv("C:/Users/Laura/Documents/UNL/Field_Work/Winter2018-2019/WinterFeederProject/FeederData/RFID_Records_fixed.csv")
+RFIDdem <- RFIDdf %>%
+  left_join(demo, by = "RFID") %>%
+  select(-Date, -Time) %>%
+  filter(Species != "TestTag") %>%
+  mutate(Date = date(Datetime))
+## Look at average length of time between hits
+datasort <- arrange(RFIDdem %>% group_by(Logger, RFID), Datetime, .by_group = TRUE)
+datasort$values = 0
+datasort <- datasort %>% 
+  select(Logger, Datetime, Antenna, RFID, Species, Weight, Date, values)
+## calculate time difference between consecutive hits for each individual
+for(i in 2:nrow(datasort)){
+  
+  datasort$values[i] <- difftime(time1 = datasort$Datetime[i], time2 = datasort$Datetime[i-1], units = "secs")
+  
+}
+## clean it up
+datasort$values[datasort$values < 0] <- "0"
+datasort$values <- as.numeric(datasort$values)
+datasort <- datasort %>%
+  mutate(minutes = as.numeric(values)/60)
+## collapse consecutive hits
+require(lubridate)
+visits <- datasort %>%
+  mutate(consec = ifelse(values <= 2, paste0("0"), paste0("1")))
+dif_visits <- visits %>%
+  filter(consec == "1")
+same_visits <- visits %>%
+  filter(consec == "0") %>%
+  mutate(seqrle = sequence(rle(consec)$lengths)) %>%
+  filter(seqrle == 1)
+all_visits <- rbind(dif_visits, same_visits) %>%
+  select(-seqrle, -consec) %>%
+  mutate(Datehour = floor_date(Datetime, unit = "hours"))
+
+saveRDS(all_visits, "all_visits.RDS")
+
+
+
+
+
+
+
+##### Spatial correlation matrix
+require(tidyverse)
+load("C:/Users/Annie Madsen/Documents/Madsen/R/all_visits.dat")
+coords = read.csv("C:/Users/Annie Madsen/Documents/Madsen/Pioneers Park Project/Outreach/Handout/feeder_coords.csv")
+### summarise number of visits at each feeder for each bird
+vis <- all_visits %>%
+  group_by(Logger, RFID) %>%
+  summarise(logvis = n()) %>%
+  ungroup()
+### reshape data frame and calculate proportion of visits at each feeder
+require(reshape)
+logsums <- cast(vis, Logger ~ RFID, value = "logvis")
+logsums[is.na(logsums)] <- 0
+y = colSums(logsums)
+fin <- as.data.frame(mapply("/", logsums[-1], y))
+
+
+locs_fin <- all_visits %>%
+  left_join(all_visits, coords, by="Logger") %>% 
+  group_by(RFID) %>%
+  summarise(avg_x = mean(x), avg_y = mean(y)) %>%
+  ungroup()
+
+
+
+
+### make correlation/similarity matrix
+#require(proxy)
+#logmat <- as.matrix(simil(fin, by_rows = FALSE))
+
+#making netowork
+birddat = birddat[which(birddat$Species!=""),] #getting rid of false RFID tags
+gbi=dat.dowo$gbi[,which(colnames(dat.dowo$gbi)%in%birddat$RFID)]
+net = get_network(gbi, association_index = "SRI")
+
+##making pretty non-interactive igraph network for annie
+g=graph_from_adjacency_matrix(net, "undirected", weighted=T)
+
+V(g)$species = as.character(birddat$Species[match(V(g)$name, birddat$RFID)])
+V(g)$color = V(g)$species
+V(g)$color = gsub("BCCH", "darkgreen", V(g)$color)
+V(g)$color = gsub("RBNU", "orange", V(g)$color)
+V(g)$color = gsub("WBNU", "yellow", V(g)$color)
+V(g)$color = gsub("DOWO", "slateblue", V(g)$color)
+V(g)$color = sub("RBWO", "darkblue", V(g)$color)
+plot(g, vertex.label="", edge.width=E(g)$weight*20)                                                                                                                          
+#legend("bottomleft", legend=c("Black-capped Chickadee","Red-breasted Nuthatch", "White-breasted Nuthatch", "Downy Woodpecker", "Red-bellied Woodpecker"), pch=21, pt.bg=c("darkgreen", "orange", "yellow", "slateblue", "darkblue"))
+
+#made with just WBNU and DOWO
+gsub <- subgraph(g, which(V(g)$species == c("DOWO","WBNU"), useNames = T))
+
+plot(gsub, vertex.label="", edge.width=E(g)$weight*15)
+
+
+#getting map
+get_map(location = c(lon = -96.774530, lat = 40.772686), maptype = "satellite")
