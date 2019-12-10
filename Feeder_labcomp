@@ -247,6 +247,10 @@ library(asnipe)
 library(visNetwork)
 library(ggmap)
 
+for(i in 1:length(DOWOflocks)){
+  temp = DOWOflocks[[i]]
+  assign(paste0("flock", i), temp)
+}
 
 # dat.dowo = readRDS("network/conspecificDOWOflocks.rds")
 # dat.wbnu = readRDS("network/conspecificWBNUflocks.rds")
@@ -273,17 +277,44 @@ for(i in 1:length(DOWOflocks)){
 #legend("bottomleft", legend=c("Black-capped Chickadee","Red-breasted Nuthatch", "White-breasted Nuthatch", "Downy Woodpecker", "Red-bellied Woodpecker"), pch=21, pt.bg=c("darkgreen", "orange", "yellow", "slateblue", "darkblue"))
 }
 
-### getting edge density and betweenness
+### calculate edge density
 n = list()
 m = list()
 dyads = list()
 density = list()
 for(i in 1:length(g)){
-  n[i]=vcount(g[[i]])
-  m[i]=ecount(g[[i]])
-  dyads[i]=n[i]*(n[i]-1)/2
-  density[i]=m[i]/dyads[i]
+  n[[i]]=vcount(g[[i]]) ## total number of individuals for the day
+  m[[i]]=ecount(g[[i]])
+  dyads[[i]]=n[[i]]*(n[[i]]-1)/2 ## number of possible edges based on number of vertices
+  density[[i]]=m[[i]]/dyads[[i]] ## ratio of the number of edges and the number of possible edges 
   }
+
+## filter weather days we need
+weath_net <- weather[c(1:45),]
+
+##plot density vs. temperature
+plot(weath_net$nightlows, density)
+plot(weath_net$nightlows, n)
+plot(n, density) ## should be correlated, not cancelling out and causing a null relationship
+
+##daily average flock size; row sums/# cols for each day
+
+
+
+##number flocks/feeder/day; # rows = #gmm events for that day, do this per logger
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 #made with just WBNU and DOWO
