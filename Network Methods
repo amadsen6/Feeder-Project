@@ -10,7 +10,8 @@ weather <- weather %>%
   filter(Hour >= 19 | Hour <= 4) %>%
   mutate(Lagdate = ifelse(Hour <= 4, paste0(lag(Date)), paste0(Date))) %>%
   group_by(Date) %>%
-  summarize(nightlows = min(Temp_C)) %>%
+  summarize(nightlows = min(
+    Temp_C)) %>%
   ungroup()
 
 demo <- read.csv("C:/Users/Annie Madsen/Documents/Madsen/Pioneers Park Project/Bird Banding Data/RFID_Records_03052019.csv")
@@ -221,15 +222,26 @@ dat.dowo <- all_visits %>%
 dat.wbnu <- all_visits %>%
   filter(Species == "WBNU")
 
+DOWOflocks = list()
 for(i in 1:max(dat.dowo$index)){
   dowo_temp = dat.dowo %>% filter(index == i)
-  DOWOflocks[i] = gmmevents(dowo_temp$Timestamp, dowo_temp$RFID, dowo_temp$Logger) 
+  DOWOflocks[[i]] = gmmevents(dowo_temp$Timestamp, dowo_temp$RFID, dowo_temp$Logger) 
 }
 
+WBNUflocks = list()
 for(i in 1:max(dat.wbnu$index)){
   wbnu_temp = dat.wbnu %>% filter(index == i)
-  WBNUflocks[i] = gmmevents(wbnu_temp$Timestamp, wbnu_temp$RFID, wbnu_temp$Logger) 
+  WBNUflocks[[i]] = gmmevents(wbnu_temp$Timestamp, wbnu_temp$RFID, wbnu_temp$Logger) 
 }
+
+## network for 5 coldest & 5 warmest days
+sample(weather[weather$nightlows %in% tail(sort(weather$nightlows),10),])
+sample(weather[weather$nightlows %in% head(sort(weather$nightlows),10),])
+
+### network parameters vs temperature
+
+
+
 
 
 
