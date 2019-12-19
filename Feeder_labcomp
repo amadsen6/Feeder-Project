@@ -215,13 +215,19 @@ ggplot(wbnu_df, aes(nightlows, sumvisits)) +
 ## Figure 2? Individual networks
 ## index data by day
 all_visits <- all_visits %>%
+  ungroup() %>%
   mutate(index = as.numeric(Date- min(Date)+1)) %>%
   mutate(Timestamp = as.numeric(Datetime))
 
+require(asnipe)
 dat.dowo <- all_visits %>%
-  filter(Species == "DOWO")
+  ungroup() %>%
+  filter(Species == "DOWO") %>%
+  mutate(LoggerDate = paste0(Logger, Date))
 dat.wbnu <- all_visits %>%
-  filter(Species == "WBNU")
+  ungroup() %>%
+  filter(Species == "WBNU") %>%
+  mutate(LoggerDate = paste0(Logger, Date))
 DOWOflocks = list()
 for(i in 1:max(dat.dowo$index)){
   dowo_temp = dat.dowo %>% filter(index == i)
@@ -229,7 +235,7 @@ for(i in 1:max(dat.dowo$index)){
   DOWOflocks[[i]] = gmmevents(dowo_temp$Timestamp, dowo_temp$RFID, dowo_temp$Logger) 
   }
 }
-
+save(DOWOflocks, file = "C:/Users/ShizukaLab/Downloads/DOWOflocks.r")
 
 WBNUflocks = list()
 for(i in 1:max(dat.wbnu$index)){
@@ -238,6 +244,7 @@ for(i in 1:max(dat.wbnu$index)){
   WBNUflocks[[i]] = gmmevents(wbnu_temp$Timestamp, wbnu_temp$RFID, wbnu_temp$Logger) 
   }
 }
+save(WBNUflocks, file = "C:/Users/ShizukaLab/Downloads/WBNUflocks.r")
 
 ## Need to use index to grab 5 coldest & warmest days and make networks... 
 
@@ -260,6 +267,7 @@ gbi = list()
 net = list()
 g = list()
 for(i in 1:length(DOWOflocks)){
+  if(!is.null(DOWOflocks[[i]])){
   gbi[[i]]=DOWOflocks[[i]]$gbi[,which(colnames(DOWOflocks[[i]]$gbi)%in%birddat$RFID)]
   net[[i]] = get_network(gbi[[i]], association_index = "SRI")
   
@@ -273,7 +281,8 @@ for(i in 1:length(DOWOflocks)){
 # V(g[[i]])$color = gsub("WBNU", "yellow", V(g[[i]])$color)
 # V(g[[i]])$color = gsub("DOWO", "slateblue", V(g[[i]])$color)
 # V(g[[i]])$color = sub("RBWO", "darkblue", V(g[[i]])$color)
-  plot(g[[i]], vertex.label="", edge.width=E(g[[i]])$weight*20)                                                                                                                          
+  plot(g[[i]], vertex.label="", edge.width=E(g[[i]])$weight*20)
+  }
 #legend("bottomleft", legend=c("Black-capped Chickadee","Red-breasted Nuthatch", "White-breasted Nuthatch", "Downy Woodpecker", "Red-bellied Woodpecker"), pch=21, pt.bg=c("darkgreen", "orange", "yellow", "slateblue", "darkblue"))
 }
 
@@ -283,14 +292,16 @@ m = list()
 dyads = list()
 density = list()
 for(i in 1:length(g)){
-  n[[i]]=vcount(g[[i]]) ## total number of individuals for the day
-  m[[i]]=ecount(g[[i]])
-  dyads[[i]]=n[[i]]*(n[[i]]-1)/2 ## number of possible edges based on number of vertices
-  density[[i]]=m[[i]]/dyads[[i]] ## ratio of the number of edges and the number of possible edges 
+  if(!is.null(g[[i]])){
+      n[[i]]=vcount(g[[i]]) ## total number of individuals for the day
+      m[[i]]=ecount(g[[i]])
+      dyads[[i]]=n[[i]]*(n[[i]]-1)/2 ## number of possible edges based on number of vertices
+      density[[i]]=m[[i]]/dyads[[i]] ## ratio of the number of edges and the number of possible edges 
+    }
   }
 
 ## filter weather days we need
-weath_net <- weather[c(1:45),]
+weath_net <- weather[c(1:53),]
 
 ##plot density vs. temperature
 plot(weath_net$nightlows, density)
@@ -298,13 +309,21 @@ plot(weath_net$nightlows, n)
 plot(n, density) ## should be correlated, not cancelling out and causing a null relationship
 
 ##daily average flock size; row sums/# cols for each day
-
+avg_flocks <- list()
+for(i in 1:length(DOWOflocks)){
+  if(!is.null(DOWOflocks[[i]]$gbi)){
+    for(j in DOWOflocks[[i]]$gbi[j,]){ ### messed up something here
+      avg_flocks[[i]] = sum(DOWOflocks[[i]]$gbi[j,])/ncol(DOWOflocks[[i]]$gbi)
+    }
+  }
+}
 
 
 ##number flocks/feeder/day; # rows = #gmm events for that day, do this per logger
 
 
 
+## temp responses vs. assortativity analysis:positive if similar vertices tend to connect to each other, negative if not
 
 
 
