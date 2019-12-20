@@ -1,0 +1,342 @@
+#### PPNC Network and Temperature Paper
+require(tidyverse)
+require(lubridate)
+##data
+load("C:/Users/ShizukaLab/Downloads/all_visits.dat")
+load("C:/Users/ShizukaLab/Downloads/weather.dat")
+weather$Date <- as.Date(weather$Date, format = "%m/%d/%Y")
+weather <- weather %>%
+  mutate(Hour = hour(datetime)) %>%
+  filter(Hour >= 19 | Hour <= 4) %>%
+  mutate(Lagdate = ifelse(Hour <= 4, paste0(lag(Date)), paste0(Date)))  %>%
+  group_by(Date) %>%
+  summarize(nightlows = min(Temp_C)) %>%
+  ungroup() %>%
+  mutate(index = as.numeric(Date-min(Date)+1))
+  
+
+demo <- read.csv("C:/Users/ShizukaLab/Downloads/RFID_Records_03052019.csv")
+demo <- demo %>%
+  select(-Date) %>%
+  filter(Species != "SCJU")
+
+## quick stats for results section
+ndowo <- all_visits %>%
+  filter(Species == "DOWO")
+nwbnu <- all_visits %>%
+  filter(Species == "WBNU")
+
+### Species Models for DOWO and WBNU
+morn_visits <- all_visits %>%
+  mutate(Hour = hour(Datetime)) %>%
+  mutate(Date = date(Datetime)) %>%
+  filter(Hour >= 6 | Hour <= 11) %>%
+  group_by(RFID, Date) %>%
+  summarise(sumvisits = n()) %>%
+  ungroup() %>%
+  left_join(weather, by = "Date") %>%
+  left_join(demo, by = "RFID") %>%
+  select(Date, RFID, Species, Weight, Tarsus, Wing, Sex, Age, Culmen, nightlows, sumvisits) %>%
+  filter(Date < "2019-03-11" & Date > "2019-01-25") %>%
+  filter(Species == "DOWO" | Species == "WBNU")
+
+morn_visits$RFID <- as.factor(morn_visits$RFID)
+
+newdata <- morn_visits[-9]
+write.csv(newdata, file = "C:/Users/Annie Madsen/Documents/Madsen/Coursework/R Class/feederdata.csv")
+
+require(mgcv)
+md <- gamm(sumvisits ~ s(nightlows, fx = FALSE, bs = "tp") + s(RFID, bs = "re"),
+           family = poisson,
+           data = morn_visits %>% filter(Species == "DOWO"))
+summary(md$gam)
+summary(md$lme)
+plot(md$gam)
+
+mw <- gamm(sumvisits ~ s(nightlows, fx = FALSE, bs = "tp") + s(RFID, bs = "re"),
+           family = poisson,
+           data = morn_visits %>% filter(Species == "WBNU"))
+summary(mw$gam)
+summary(mw$lme)
+plot(mw$gam)
+
+### species level LMMs
+require(lme4)
+test_dowo <- glmer(sumvisits ~ scale(nightlows) + (1|RFID), data = morn_visits %>% filter(Species == "DOWO"), family = "poisson")
+plot(resid(test))
+
+test_wbnu <- glmer(sumvisits ~ scale(nightlows) + (1|RFID), data = morn_visits %>% filter(Species == "WBNU"), family = "poisson")
+plot(resid(test))
+
+library(rsq)
+library(MuMIn)
+library(arm) 
+
+r.squaredGLMM(test_dowo)
+r.squaredGLMM(test_wbnu)
+
+nsim = 10000
+bsim = sim(test_dowo, n.sim = nsim)
+apply(bsim@fixef,2,mean)
+apply(bsim@fixef,2,quantile, prob=c(0.025,0.975))
+apply(bsim@ranef,2,mean)
+apply(bsim@ranef,2,quantile, prob=c(0.025,0.975))
+
+bsim = sim(test_wbnu, n.sim = nsim)
+apply(bsim@fixef,2,mean)
+apply(bsim@fixef,2,quantile, prob=c(0.025,0.975))
+apply(bsim@ranef,2,mean)
+apply(bsim@ranef,2,quantile, prob=c(0.025,0.975))
+
+## Bayes
+require(MCMCglmm)
+poismod_dowo <- MCMCglmm(sumvisits ~ nightlows,
+                         random = ~RFID,
+                         family = "poisson", 
+                         data = morn_visits %>% filter(Species == "DOWO"),
+                         nitt = 220000, ###nitt = burnin + thin*(number of samples to keep)
+                         thin = 20,
+                         burnin = 2000)
+
+poismod_wbnu <- MCMCglmm(sumvisits ~ nightlows,
+                         random = ~RFID,
+                         family = "poisson", 
+                         data = morn_visits %>% filter(Species == "WBNU"),
+                         nitt = 220000, ###nitt = burnin + thin*(number of samples to keep)
+                         thin = 20,
+                         burnin = 2000)
+#############
+### 5/31/2019 FIX!!!!! Plots coming out all fucky
+## Figure 1
+## Panel A
+md_temp <- morn_visits %>%
+  filter(Species == "DOWO")
+md_gp <- as.data.frame(predict(md$gam, re.form = TRUE, se = TRUE, type = "response", exclude = s(RFID)))
+md_pred <- cbind(md_temp, md_gp)
+
+pana <- ggplot(md_pred) +
+  geom_line(aes(nightlows, fit)) +
+  geom_ribbon(data = md_pred, aes(x = nightlows, ymin = (fit - 2*se.fit), ymax = (fit + 2*se.fit)), linetype = 2, alpha = 0.2) +
+  theme_bw() +
+  labs(x = "", y = "", title = "Downy Woodpeckers") +
+  theme(plot.title = element_text(size = 20, hjust = 0.5))
+
+## Panel B
+mw_temp <- morn_visits %>%
+  filter(Species == "WBNU")
+mw_gp <- as.data.frame(predict(mw$gam, re.form = TRUE, se = TRUE, type = "response", exclude = s(RFID)))
+mw_pred <- cbind(mw_temp, mw_gp)
+
+panb <- ggplot(mw_pred) +
+  geom_line(aes(nightlows, fit)) +
+  geom_ribbon(data = mw_pred, aes(x = nightlows, ymin = (fit - 2*se.fit), ymax = (fit + 2*se.fit)), linetype = 2, alpha = 0.2) +
+  theme_bw() +
+  labs(x = "", y = "", title = "White-breasted Nuthatches") +
+  theme(plot.title = element_text(size = 20, hjust = 0.5))
+
+test <- rbind(md_pred, mw_pred)
+test <- test %>%
+  mutate(SpeciesName = ifelse(Species == "DOWO", paste0("Downy Woodpecker"), paste0("White-breasted Nuthatch")))
+
+ggplot(test) +
+  geom_line(aes(nightlows, fit)) +
+  geom_ribbon(data = test, aes(x = nightlows, ymin = (fit - 2*se.fit), ymax = (fit + 2*se.fit)), linetype = 2, alpha = 0.2) +
+  theme_bw() +
+  labs(x = "Lowest Overnight Temperature (\u00B0C)", y = "Morning Foraging Activity (Visits/Individual)") +
+  facet_wrap("SpeciesName", ncol = 2) +
+  theme(strip.text.x = element_text(size = 16), strip.background = element_blank(), strip.placement = "outside", axis.title.x = element_text(size = 13), axis.title.y = element_text(size = 13))
+
+##Figure 2
+## Panel A; temp vs days
+ggplot()
+
+
+### individual models
+require(rsq)
+detach(package:mgcv)
+require(gam)
+RFIDref <- unique(morn_visits$RFID)
+vals <- data.frame(RFID = 0, rs = 1:45, pval = 0)
+
+for(i in 1:31){
+  ## model
+  temp <- morn_visits %>% filter(RFID == RFIDref[i])
+  Mtemp <- gam(sumvisits ~ lo(nightlows, span = 0.6), data = temp)
+  Rtemp <- rsq(Mtemp)
+  
+  ## plot predictions over raw data
+  predMtemp <- as.data.frame(predict(Mtemp, re.form = TRUE, se = TRUE))
+  dftemp <- cbind(temp, predMtemp)
+  
+  jpeg(file = paste("GAM Fit for ", RFIDref[i], ".jpeg"),
+       width = 800,
+       height = 480)
+  
+  plot <- ggplot() +
+    geom_point(data = dftemp, aes(x = nightlows, y = sumvisits)) +
+    geom_line(data = dftemp, aes(x = nightlows, y = fit)) +
+    geom_ribbon(data = dftemp, aes(x = nightlows, ymin = (fit - 2*se.fit), ymax = (fit + 2*se.fit)), linetype = 2, alpha = 0.2, color = "black") +
+    labs(x = "Lowest Overnight Temperature (C)", y = "Morning Visitation Rate", title = paste0("GAM Fit for ", RFIDref[i]))
+  print(plot)
+  graphics.off()
+  
+  assign(paste0("M_", RFIDref[i]), Mtemp)
+  assign(paste0("Plot_", i), plot)
+  assign(paste0("R", i), Rtemp)
+  
+  vals$RFID[i] <- RFIDref[i]
+  vals$rs[i] <- Rtemp
+  vals$pval[i] <- (summary(Mtemp)$anova[,3][2])
+}
+
+
+##
+## Figure S1
+dowo_df <- morn_visits %>% 
+  filter(Species == "DOWO")
+ggplot(dowo_df, aes(nightlows, sumvisits)) +
+  geom_point() +
+  geom_smooth() +
+  facet_wrap("RFID") +
+  theme_bw() +
+  labs(title = "Downy Woodpeckers", x = "Lowest Overnight Temperature (\u00B0C)" , y = "Morning Foraging Activity (total visits)") +
+  theme(plot.title = element_text(size = 22, face = "bold"), axis.title.x = element_text(size = 22, face = "bold"), axis.title.y = element_text(size = 22, face = "bold"), axis.text.x = element_text(size = 13), axis.text.y = element_text(size = 13))
+
+wbnu_df <- morn_visits %>% 
+  filter(Species == "WBNU")
+ggplot(wbnu_df, aes(nightlows, sumvisits)) +
+  geom_point() +
+  geom_smooth() +
+  facet_wrap("RFID") +
+  theme_bw() +
+  labs(title = "White-breasted Nuthatches", x = "Lowest Overnight Temperature (\u00B0C)" , y = "Morning Foraging Activity (total visits)") +
+  theme(plot.title = element_text(size = 22, face = "bold"), axis.title.x = element_text(size = 22, face = "bold"), axis.title.y = element_text(size = 22, face = "bold"), axis.text.x = element_text(size = 13), axis.text.y = element_text(size = 13))
+
+## Figure 2? Individual networks
+## index data by day
+all_visits <- all_visits %>%
+  ungroup() %>%
+  mutate(index = as.numeric(Date- min(Date)+1)) %>%
+  mutate(Timestamp = as.numeric(Datetime))
+
+require(asnipe)
+dat.dowo <- all_visits %>%
+  ungroup() %>%
+  filter(Species == "DOWO") %>%
+  mutate(LoggerDate = paste0(Logger, Date))
+dat.wbnu <- all_visits %>%
+  ungroup() %>%
+  filter(Species == "WBNU") %>%
+  mutate(LoggerDate = paste0(Logger, Date))
+DOWOflocks = list()
+for(i in 1:max(dat.dowo$index)){
+  dowo_temp = dat.dowo %>% filter(index == i)
+  if (nrow(dowo_temp)<15) next else{
+  DOWOflocks[[i]] = gmmevents(dowo_temp$Timestamp, dowo_temp$RFID, dowo_temp$Logger) 
+  }
+}
+save(DOWOflocks, file = "C:/Users/ShizukaLab/Downloads/DOWOflocks.r")
+
+WBNUflocks = list()
+for(i in 1:max(dat.wbnu$index)){
+  wbnu_temp = dat.wbnu %>% filter(index == i)
+  if (nrow(wbnu_temp)<15) next else{
+  WBNUflocks[[i]] = gmmevents(wbnu_temp$Timestamp, wbnu_temp$RFID, wbnu_temp$Logger) 
+  }
+}
+save(WBNUflocks, file = "C:/Users/ShizukaLab/Downloads/WBNUflocks.r")
+
+## Need to use index to grab 5 coldest & warmest days and make networks... 
+
+library(igraph)
+library(ndtv)
+library(asnipe)
+library(visNetwork)
+library(ggmap)
+
+for(i in 1:length(DOWOflocks)){
+  temp = DOWOflocks[[i]]
+  assign(paste0("flock", i), temp)
+}
+
+# dat.dowo = readRDS("network/conspecificDOWOflocks.rds")
+# dat.wbnu = readRDS("network/conspecificWBNUflocks.rds")
+
+birddat = demo[which(demo$Species!=""),] #getting rid of false RFID tags
+gbi = list()
+net = list()
+g = list()
+for(i in 1:length(DOWOflocks)){
+  if(!is.null(DOWOflocks[[i]])){
+  gbi[[i]]=DOWOflocks[[i]]$gbi[,which(colnames(DOWOflocks[[i]]$gbi)%in%birddat$RFID)]
+  net[[i]] = get_network(gbi[[i]], association_index = "SRI")
+  
+##making pretty non-interactive igraph network for annie
+  g[[i]] = graph_from_adjacency_matrix(net[[i]], "undirected", weighted=T)
+# 
+# V(g[[i]])$species = as.character(birddat$Species[match(V(g)$name, birddat$RFID)])
+# V(g[[i]])$color = V(g[[i]])$species
+# V(g[[i]])$color = gsub("BCCH", "darkgreen", V(g[[i]])$color)
+# V(g[[i]])$color = gsub("RBNU", "orange", V(g[[i]])$color)
+# V(g[[i]])$color = gsub("WBNU", "yellow", V(g[[i]])$color)
+# V(g[[i]])$color = gsub("DOWO", "slateblue", V(g[[i]])$color)
+# V(g[[i]])$color = sub("RBWO", "darkblue", V(g[[i]])$color)
+  plot(g[[i]], vertex.label="", edge.width=E(g[[i]])$weight*20)
+  }
+#legend("bottomleft", legend=c("Black-capped Chickadee","Red-breasted Nuthatch", "White-breasted Nuthatch", "Downy Woodpecker", "Red-bellied Woodpecker"), pch=21, pt.bg=c("darkgreen", "orange", "yellow", "slateblue", "darkblue"))
+}
+
+### calculate edge density
+n = list()
+m = list()
+dyads = list()
+density = list()
+for(i in 1:length(g)){
+  if(!is.null(g[[i]])){
+      n[[i]]=vcount(g[[i]]) ## total number of individuals for the day
+      m[[i]]=ecount(g[[i]])
+      dyads[[i]]=n[[i]]*(n[[i]]-1)/2 ## number of possible edges based on number of vertices
+      density[[i]]=m[[i]]/dyads[[i]] ## ratio of the number of edges and the number of possible edges 
+    }
+  }
+
+## filter weather days we need
+weath_net <- weather[c(1:53),]
+
+##plot density vs. temperature
+plot(weath_net$nightlows, density)
+plot(weath_net$nightlows, n)
+plot(n, density) ## should be correlated, not cancelling out and causing a null relationship
+
+##daily average flock size; row sums/# cols for each day
+avg_flocks <- list()
+for(i in 1:length(DOWOflocks)){
+  if(!is.null(DOWOflocks[[i]]$gbi)){
+    for(j in DOWOflocks[[i]]$gbi[j,]){ ### messed up something here
+      avg_flocks[[i]] = sum(DOWOflocks[[i]]$gbi[j,])/ncol(DOWOflocks[[i]]$gbi)
+    }
+  }
+}
+
+
+##number flocks/feeder/day; # rows = #gmm events for that day, do this per logger
+
+
+
+## temp responses vs. assortativity analysis:positive if similar vertices tend to connect to each other, negative if not
+
+
+
+
+
+
+
+
+
+
+
+
+#made with just WBNU and DOWO
+gsub <- subgraph(g, which(V(g)$species == c("DOWO","WBNU"), useNames = T))
+
+plot(gsub, vertex.label="", edge.width=E(g)$weight*15)
