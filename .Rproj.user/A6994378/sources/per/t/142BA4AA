@@ -5,15 +5,15 @@
     "dirty" : false,
     "encoding" : "UTF-8",
     "folds" : "",
-    "hash" : "0",
+    "hash" : "2111739409",
     "id" : "142BA4AA",
-    "lastKnownWriteTime" : 1576867131,
-    "last_content_update" : 1576867131701,
+    "lastKnownWriteTime" : 1576870666,
+    "last_content_update" : 1576870666291,
     "path" : "~/Documents/GitHub/Feeder-Project/DS_tempGLMM.R",
     "project_path" : "DS_tempGLMM.R",
     "properties" : {
-        "cursorPosition" : "0,0",
-        "scrollLine" : "0"
+        "cursorPosition" : "114,0",
+        "scrollLine" : "103"
     },
     "relative_order" : 2,
     "source_on_save" : false,

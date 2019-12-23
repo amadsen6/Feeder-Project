@@ -7,7 +7,8 @@ library(igraph)
 gmmDOWO=readRDS("conspecificDOWOflocks.rds") #import gmm results file. Will need this for permuting group-by-individual matrices.
 gmmWBNU=readRDS("conspecificWBNUflocks.rds") #import gmm results file. Will need this for permuting group-by-individual matrices.
 
-gbi_dowo=gmmDOWO$gbi
+
+gbi_dowo=DOWOflocks$gbi
 gbi_wbnu=gmmWBNU$gbi
 
 dowoadj=get_network(gbi_dowo)
@@ -15,8 +16,6 @@ wbnuadj=get_network(gbi_wbnu)
 
 diag(dowoadj)=NA
 diag(wbnuadj)=NA
-
-
 
 ###
 load("all_visits.dat")
