@@ -2,8 +2,9 @@
 require(tidyverse)
 require(lubridate)
 ##data
-load("C:/Users/ShizukaLab/Downloads/all_visits.dat")
-load("C:/Users/ShizukaLab/Downloads/weather.dat")
+load("all_visits.dat")
+load("weather.dat")
+
 weather$Date <- as.Date(weather$Date, format = "%m/%d/%Y")
 weather <- weather %>%
   mutate(Hour = hour(datetime)) %>%
@@ -15,7 +16,7 @@ weather <- weather %>%
   mutate(index = as.numeric(Date-min(Date)+1))
 
 
-demo <- read.csv("C:/Users/ShizukaLab/Downloads/RFID_Records_03052019.csv")
+demo <- read.csv("RFID_Records_fixed.csv")
 demo <- demo %>%
   select(-Date) %>%
   filter(Species != "SCJU")
@@ -43,7 +44,16 @@ morn_visits <- all_visits %>%
 morn_visits$RFID <- as.factor(morn_visits$RFID)
 
 newdata <- morn_visits[-9]
-write.csv(newdata, file = "C:/Users/Annie Madsen/Documents/Madsen/Coursework/R Class/feederdata.csv")
+#write.csv(newdata, file = "C:/Users/Annie Madsen/Documents/Madsen/Coursework/R Class/feederdata.csv")
+
+###
+
+newdat2=newdata %>%  group_by(RFID) %>% mutate(lag1=dplyr::lag(nightlows)) %>% mutate(lead1=dplyr::lead(nightlows))
+
+
+####
+
+
 
 require(mgcv)
 md <- gamm(sumvisits ~ s(nightlows, fx = FALSE, bs = "tp") + s(RFID, bs = "re"),
@@ -63,10 +73,10 @@ plot(mw$gam)
 ### species level LMMs
 require(lme4)
 test_dowo <- glmer(sumvisits ~ scale(nightlows) + (1|RFID), data = morn_visits %>% filter(Species == "DOWO"), family = "poisson")
-plot(resid(test))
+plot(resid(test_dowo))
 
 test_wbnu <- glmer(sumvisits ~ scale(nightlows) + (1|RFID), data = morn_visits %>% filter(Species == "WBNU"), family = "poisson")
-plot(resid(test))
+plot(resid(test_wbnu))
 
 library(rsq)
 library(MuMIn)
@@ -75,6 +85,40 @@ library(arm)
 r.squaredGLMM(test_dowo)
 r.squaredGLMM(test_wbnu)
 
+### species level LMMs with day before and after temperature
+require(lme4)
+library(rsq)
+library(MuMIn)
+library(arm) 
+
+test_dowo <- glmer(sumvisits ~ scale(nightlows) + (1|RFID), data = newdat2 %>% filter(Species == "DOWO"), family = "poisson")
+plot(resid(test_dowo))
+
+test_wbnu <- glmer(sumvisits ~ scale(nightlows) + (1|RFID), data = morn_visits %>% filter(Species == "WBNU"), family = "poisson")
+plot(resid(test_wbnu))
+
+r.squaredGLMM(test_dowo)
+r.squaredGLMM(test_wbnu)
+
+test_dowo_lag <- glmer(sumvisits ~ scale(lag1) + (1|RFID), data = newdat2 %>% filter(Species == "DOWO") %>% filter(is.na(lag1)==F), family = "poisson")
+summary(test_dowo_lag)
+
+test_wbnu_lag <- glmer(sumvisits ~ scale(lag1) + (1|RFID), data = newdat2 %>% filter(Species == "WBNU") %>% filter(is.na(lag1)==F), family = "poisson")
+summary(test_wbnu_lead)
+
+test_dowo_lead <- glmer(sumvisits ~ scale(lead1) + (1|RFID), data = newdat2 %>% filter(Species == "DOWO") %>% filter(is.na(lead1)==F), family = "poisson")
+summary(test_dowo_lead)
+
+test_wbnu_lead <- glmer(sumvisits ~ scale(lead1) + (1|RFID), data = newdat2 %>% filter(Species == "WBNU") %>% filter(is.na(lead1)==F), family = "poisson")
+summary(test_wbnu_lead)
+
+r.squaredGLMM(test_dowo)
+r.squaredGLMM(test_wbnu)
+r.squaredGLMM(test_dowo_lag)
+r.squaredGLMM(test_wbnu_lag)
+r.squaredGLMM(test_dowo_lead)
+r.squaredGLMM(test_wbnu_lead)
+####
 nsim = 10000
 bsim = sim(test_dowo, n.sim = nsim)
 apply(bsim@fixef,2,mean)
