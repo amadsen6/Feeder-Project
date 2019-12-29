@@ -8,7 +8,7 @@ gmmDOWO=readRDS("conspecificDOWOflocks.rds") #import gmm results file. Will need
 gmmWBNU=readRDS("conspecificWBNUflocks.rds") #import gmm results file. Will need this for permuting group-by-individual matrices.
 
 
-gbi_dowo=DOWOflocks$gbi
+gbi_dowo=gmmDOWO$gbi
 gbi_wbnu=gmmWBNU$gbi
 
 dowoadj=get_network(gbi_dowo)
@@ -93,7 +93,7 @@ dowoadj.bin=dowoadj
 dowoadj.bin[which(dowoadj.bin>0)]=1
 colSums(dowoadj.bin[1,]*t(dowovisits.mat), na.rm=T)
 
-dowo.friend.activity=apply(dowoadj.bin, 1, function(x) colSums(x*t(dowovisits.mat), na.rm=T))
+dowo.friend.activity=apply(dowoadj, 1, function(x) colSums(x*t(dowovisits.mat), na.rm=T))
 dowo.friend.activity=as.data.frame(dowo.friend.activity)
 dowo.friend.activity
 
@@ -114,11 +114,14 @@ dowo.b = dowo.friend.activity %>% gather("ID", "z_score_friends", -Date, -nightl
 
 dowo.final.dat=merge(dowo.a,dowo.b)
 
-mod=lmer(z_score~nightlows+z_score_friends+(1|ID), data=dowo.final.dat)
-summary(mod)
-anova(mod)
-r.squaredGLMM(mod)
+dowomod=lmer(z_score~scale(nightlows)*scale(z_score_friends)+(1|ID), data=dowo.final.dat)
+summary(dowomod)
 
+r.squaredGLMM(dowomod)
+
+mod0=lmer(z_score~scale(nightlows) + (1|ID), data=dowo.final.dat)
+summary(mod0)
+r.squaredGLMM(mod0)
 
 ##wbnu
 wbnuvisits=mat_final[,which(colnames(mat_final)%in%rownames(wbnuadj))]
@@ -147,6 +150,11 @@ wbnu.b = wbnu.friend.activity %>% gather("ID", "z_score_friends", -Date, -nightl
 
 wbnu.final.dat=merge(wbnu.a,wbnu.b)
 
-mod=lmer(z_score~nightlows+z_score_friends+(1|ID), data=wbnu.final.dat)
+mod=lmer(z_score~scale(nightlows)*scale(z_score_friends)+(1|ID), data=wbnu.final.dat)
 summary(mod)
+anova(mod)
 r.squaredGLMM(mod)
+
+mod0=lmer(z_score~scale(nightlows) + (1|ID), data=wbnu.final.dat)
+summary(mod0)
+r.squaredGLMM(mod0)

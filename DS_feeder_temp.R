@@ -90,12 +90,16 @@ require(lme4)
 library(rsq)
 library(MuMIn)
 library(arm) 
+library(lmerTest)
 
 test_dowo <- glmer(sumvisits ~ scale(nightlows) + (1|RFID), data = newdat2 %>% filter(Species == "DOWO"), family = "poisson")
 plot(resid(test_dowo))
+summary(test_dowo)
+
 
 test_wbnu <- glmer(sumvisits ~ scale(nightlows) + (1|RFID), data = morn_visits %>% filter(Species == "WBNU"), family = "poisson")
 plot(resid(test_wbnu))
+summary(test_wbnu)
 
 r.squaredGLMM(test_dowo)
 r.squaredGLMM(test_wbnu)
@@ -118,6 +122,9 @@ r.squaredGLMM(test_dowo_lag)
 r.squaredGLMM(test_wbnu_lag)
 r.squaredGLMM(test_dowo_lead)
 r.squaredGLMM(test_wbnu_lead)
+
+
+
 ####
 nsim = 10000
 bsim = sim(test_dowo, n.sim = nsim)
