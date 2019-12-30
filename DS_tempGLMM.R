@@ -71,19 +71,17 @@ weather.use=weather[which(weather$Date>"2019-01-26"&weather$Date<"2019-03-10"),]
 weather.use
 
 ##
-morn_visits <- all_visits %>%
-  mutate(Hour = hour(Datetime)) %>%
-  mutate(Date = date(Datetime)) %>%
-  filter(Hour >= 6 | Hour <= 11) %>%
-  group_by(RFID, Date) %>%
-  summarise(sumvisits = n()) %>%
-  ungroup() %>%
-  left_join(weather, by = "Date") %>%
-  filter(Date < "2019-03-11" & Date > "2019-01-25")
-
-morn_visits$RFID <- as.factor(morn_visits$RFID)
-
-
+# morn_visits <- all_visits %>%
+#   mutate(Hour = hour(Datetime)) %>%
+#   mutate(Date = date(Datetime)) %>%
+#   filter(Hour >= 6 | Hour <= 11) %>%
+#   group_by(RFID, Date) %>%
+#   summarise(sumvisits = n()) %>%
+#   ungroup() %>%
+#   left_join(weather, by = "Date") %>%
+#   filter(Date < "2019-03-11" & Date > "2019-01-25")
+# 
+# morn_visits$RFID <- as.factor(morn_visits$RFID)
 
 ##dowo
 dowovisits=mat_final[,which(colnames(mat_final)%in%rownames(dowoadj))]
@@ -119,9 +117,9 @@ summary(dowomod)
 
 r.squaredGLMM(dowomod)
 
-mod0=lmer(z_score~scale(nightlows) + (1|ID), data=dowo.final.dat)
-summary(mod0)
-r.squaredGLMM(mod0)
+# mod0=lmer(z_score~scale(nightlows) + (1|ID), data=dowo.final.dat)
+# summary(mod0)
+# r.squaredGLMM(mod0)
 
 ##wbnu
 wbnuvisits=mat_final[,which(colnames(mat_final)%in%rownames(wbnuadj))]
