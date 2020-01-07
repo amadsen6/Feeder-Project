@@ -2,8 +2,8 @@
 require(tidyverse)
 require(lubridate)
 ##data
-load("C:/Users/ShizukaLab/Downloads/all_visits.dat")
-load("C:/Users/ShizukaLab/Downloads/weather.dat")
+load("C:/Users/Annie Madsen/Documents/Madsen/R/all_visits.dat")
+load("C:/Users/Annie Madsen/Documents/Madsen/R/weather.dat")
 weather$Date <- as.Date(weather$Date, format = "%m/%d/%Y")
 weather <- weather %>%
   mutate(Hour = hour(datetime)) %>%
@@ -42,8 +42,8 @@ morn_visits <- all_visits %>%
 
 morn_visits$RFID <- as.factor(morn_visits$RFID)
 
-newdata <- morn_visits[-9]
-write.csv(newdata, file = "C:/Users/Annie Madsen/Documents/Madsen/Coursework/R Class/feederdata.csv")
+# newdata <- morn_visits[-9]
+# write.csv(newdata, file = "C:/Users/Annie Madsen/Documents/Madsen/Coursework/R Class/feederdata.csv")
 
 require(mgcv)
 md <- gamm(sumvisits ~ s(nightlows, fx = FALSE, bs = "tp") + s(RFID, bs = "re"),
@@ -105,8 +105,7 @@ poismod_wbnu <- MCMCglmm(sumvisits ~ nightlows,
                          nitt = 220000, ###nitt = burnin + thin*(number of samples to keep)
                          thin = 20,
                          burnin = 2000)
-#############
-### 5/31/2019 FIX!!!!! Plots coming out all fucky
+#####
 ## Figure 1
 ## Panel A
 md_temp <- morn_visits %>%
@@ -146,11 +145,8 @@ ggplot(test) +
   facet_wrap("SpeciesName", ncol = 2) +
   theme(strip.text.x = element_text(size = 16), strip.background = element_blank(), strip.placement = "outside", axis.title.x = element_text(size = 13), axis.title.y = element_text(size = 13))
 
-##Figure 2
-## Panel A; temp vs days
-ggplot()
 
-
+#####
 ### individual models
 require(rsq)
 detach(package:mgcv)
@@ -190,7 +186,6 @@ for(i in 1:31){
 }
 
 
-##
 ## Figure S1
 dowo_df <- morn_visits %>% 
   filter(Species == "DOWO")
@@ -212,27 +207,30 @@ ggplot(wbnu_df, aes(nightlows, sumvisits)) +
   labs(title = "White-breasted Nuthatches", x = "Lowest Overnight Temperature (\u00B0C)" , y = "Morning Foraging Activity (total visits)") +
   theme(plot.title = element_text(size = 22, face = "bold"), axis.title.x = element_text(size = 22, face = "bold"), axis.title.y = element_text(size = 22, face = "bold"), axis.text.x = element_text(size = 13), axis.text.y = element_text(size = 13))
 
-## Figure 2? Individual networks
+
+#####
+## Figure 4? 
+## Start by making daily networks
 ## index data by day
 all_visits <- all_visits %>%
   ungroup() %>%
+  mutate(LoggerDate = paste0(Logger, Date)) %>%
   mutate(index = as.numeric(Date- min(Date)+1)) %>%
   mutate(Timestamp = as.numeric(Datetime))
 
+## reformat visitation data for gmmevents
 require(asnipe)
 dat.dowo <- all_visits %>%
   ungroup() %>%
-  filter(Species == "DOWO") %>%
-  mutate(LoggerDate = paste0(Logger, Date))
+  filter(Species == "DOWO")
 dat.wbnu <- all_visits %>%
   ungroup() %>%
-  filter(Species == "WBNU") %>%
-  mutate(LoggerDate = paste0(Logger, Date))
+  filter(Species == "WBNU")
 DOWOflocks = list()
 for(i in 1:max(dat.dowo$index)){
   dowo_temp = dat.dowo %>% filter(index == i)
-  if (nrow(dowo_temp)<15) next else{
-    DOWOflocks[[i]] = gmmevents(dowo_temp$Timestamp, dowo_temp$RFID, dowo_temp$Logger) 
+  if (nrow(dowo_temp)<15 | !is.null(dat.dowo$index[i])) next else{
+    DOWOflocks[[i]] = gmmevents(dowo_temp$Timestamp, dowo_temp$RFID, dowo_temp$LoggerDate) 
   }
 }
 save(DOWOflocks, file = "C:/Users/ShizukaLab/Downloads/DOWOflocks.r")
@@ -241,72 +239,167 @@ WBNUflocks = list()
 for(i in 1:max(dat.wbnu$index)){
   wbnu_temp = dat.wbnu %>% filter(index == i)
   if (nrow(wbnu_temp)<15) next else{
-    WBNUflocks[[i]] = gmmevents(wbnu_temp$Timestamp, wbnu_temp$RFID, wbnu_temp$Logger) 
+    WBNUflocks[[i]] = gmmevents(wbnu_temp$Timestamp, wbnu_temp$RFID, wbnu_temp$LoggerDate) 
   }
 }
 save(WBNUflocks, file = "C:/Users/ShizukaLab/Downloads/WBNUflocks.r")
 
-## Need to use index to grab 5 coldest & warmest days and make networks... 
-
+## Daily networks
 library(igraph)
 library(ndtv)
 library(asnipe)
 library(visNetwork)
 library(ggmap)
 
-for(i in 1:length(DOWOflocks)){
-  temp = DOWOflocks[[i]]
-  assign(paste0("flock", i), temp)
-}
 
-# dat.dowo = readRDS("network/conspecificDOWOflocks.rds")
-# dat.wbnu = readRDS("network/conspecificWBNUflocks.rds")
 
 birddat = demo[which(demo$Species!=""),] #getting rid of false RFID tags
-gbi = list()
-net = list()
-g = list()
+
+## DOWO
+dowo.gbi = list()
+dowo.net = list()
+dowo.g = list()
 for(i in 1:length(DOWOflocks)){
   if(!is.null(DOWOflocks[[i]])){
-    gbi[[i]]=DOWOflocks[[i]]$gbi[,which(colnames(DOWOflocks[[i]]$gbi)%in%birddat$RFID)]
-    net[[i]] = get_network(gbi[[i]], association_index = "SRI")
-    
-    ##making pretty non-interactive igraph network for annie
-    g[[i]] = graph_from_adjacency_matrix(net[[i]], "undirected", weighted=T)
-    # 
-    # V(g[[i]])$species = as.character(birddat$Species[match(V(g)$name, birddat$RFID)])
-    # V(g[[i]])$color = V(g[[i]])$species
-    # V(g[[i]])$color = gsub("BCCH", "darkgreen", V(g[[i]])$color)
-    # V(g[[i]])$color = gsub("RBNU", "orange", V(g[[i]])$color)
-    # V(g[[i]])$color = gsub("WBNU", "yellow", V(g[[i]])$color)
-    # V(g[[i]])$color = gsub("DOWO", "slateblue", V(g[[i]])$color)
-    # V(g[[i]])$color = sub("RBWO", "darkblue", V(g[[i]])$color)
-    plot(g[[i]], vertex.label="", edge.width=E(g[[i]])$weight*20)
+    dowo.gbi[[i]]=DOWOflocks[[i]]$gbi[,which(colnames(DOWOflocks[[i]]$gbi)%in%birddat$RFID)]
+    dowo.net[[i]] = get_network(dowo.gbi[[i]], association_index = "SRI")
+    dowo.g[[i]] = graph_from_adjacency_matrix(dowo.net[[i]], "undirected", weighted=T)
+    plot(dowo.g[[i]], vertex.label="", edge.width=E(dowo.g[[i]])$weight*20) ## all daily networks
   }
-  #legend("bottomleft", legend=c("Black-capped Chickadee","Red-breasted Nuthatch", "White-breasted Nuthatch", "Downy Woodpecker", "Red-bellied Woodpecker"), pch=21, pt.bg=c("darkgreen", "orange", "yellow", "slateblue", "darkblue"))
 }
 
 ### calculate edge density
-n = list()
-m = list()
-dyads = list()
-density = list()
-for(i in 1:length(g)){
-  if(!is.null(g[[i]])){
-    n[[i]]=vcount(g[[i]]) ## total number of individuals for the day
-    m[[i]]=ecount(g[[i]])
-    dyads[[i]]=n[[i]]*(n[[i]]-1)/2 ## number of possible edges based on number of vertices
-    density[[i]]=m[[i]]/dyads[[i]] ## ratio of the number of edges and the number of possible edges 
+dowo.n = list()
+dowo.m = list()
+dowo.dyads = list()
+dowo.density = list()
+for(i in 1:length(dowo.g)){
+  if(!is.null(dowo.g[[i]])){
+    dowo.n[[i]]=vcount(dowo.g[[i]]) ## total number of individuals for the day
+    dowo.m[[i]]=ecount(dowo.g[[i]])
+    dowo.dyads[[i]]=dowo.n[[i]]*(dowo.n[[i]]-1)/2 ## number of possible edges based on number of vertices
+    dowo.density[[i]]=m[[i]]/dowo.dyads[[i]] ## ratio of the number of edges and the number of possible edges 
+  }
+}
+
+## WBNU
+wbnu.gbi = list()
+wbnu.net = list()
+wbnu.g = list()
+for(i in 1:length(WBNUflocks)){
+  if(!is.null(WBNUflocks[[i]])){
+    wbnu.gbi[[i]]=WBNUflocks[[i]]$gbi[,which(colnames(WBNUflocks[[i]]$gbi)%in%birddat$RFID)]
+    wbnu.net[[i]] = get_network(wbnu.gbi[[i]], association_index = "SRI")
+    wbnu.g[[i]] = graph_from_adjacency_matrix(wbnu.net[[i]], "undirected", weighted=T)
+    plot(wbnu.g[[i]], vertex.label="", edge.width=E(wbnu.g[[i]])$weight*20) ## all daily networks
+  }
+}
+
+### calculate edge density
+wbnu.n = list()
+wbnu.m = list()
+wbnu.dyads = list()
+wbnu.density = list()
+for(i in 1:length(wbnu.g)){
+  if(!is.null(wbnu.g[[i]])){
+    wbnu.n[[i]]=vcount(wbnu.g[[i]]) ## total number of individuals for the day
+    wbnu.m[[i]]=ecount(wbnu.g[[i]])
+    wbnu.dyads[[i]]=wbnu.n[[i]]*(wbnu.n[[i]]-1)/2 ## number of possible edges based on number of vertices
+    wbnu.density[[i]]=m[[i]]/wbnu.dyads[[i]] ## ratio of the number of edges and the number of possible edges 
   }
 }
 
 ## filter weather days we need
-weath_net <- weather[c(1:53),]
+weath_net <- weather[which(weather$Date %in% all_visits$Date),]
+weath_net <- weath_net %>%
+  mutate(index = as.numeric(Date-min(Date)+1)) %>%
+  filter(index != 48)
 
 ##plot density vs. temperature
-plot(weath_net$nightlows, density)
-plot(weath_net$nightlows, n)
-plot(n, density) ## should be correlated, not cancelling out and causing a null relationship
+plot(weath_net$nightlows, unlist(dowo.density))
+plot(weath_net$nightlows, unlist(dowo.n))
+plot(unlist(dowo.n), unlist(dowo.density)) ## should be correlated, not cancelling out and causing a null relationship
+
+weath_net.wbnu <- weath_net %>%
+  filter(index != 45)
+plot(weath_net.wbnu$nightlows, unlist(wbnu.density))
+plot(weath_net.wbnu$nightlows, unlist(wbnu.n))
+plot(unlist(wbnu.n), unlist(wbnu.density))
+
+
+######
+## 01/07/2020 Need to keep same order of individuals in the circles between warm & cold plots
+## 5 warmest days
+## filter data 
+warm <- all_visits %>%
+  filter(index == 7 | index == 40 | index == 33 | index == 2 | index == 39)
+## flocking events
+## DOWO
+dowo_warm <- warm %>%
+  filter(Species == "DOWO")
+dowo_wgmm = gmmevents(dowo_warm$Timestamp, dowo_warm$RFID, dowo_warm$LoggerDate)
+## WBNU
+wbnu_warm <- warm %>%
+  filter(Species == "WBNU")
+wbnu_wgmm = gmmevents(wbnu_warm$Timestamp, wbnu_warm$RFID, wbnu_warm$LoggerDate)
+
+## networks
+## DOWO
+dowo_wgbi = dowo_wgmm$gbi[,which(colnames(dowo_wgmm$gbi)%in%birddat$RFID)]
+dowo_wnet = get_network(dowo_wgbi, association_index = "SRI")
+dowo_wg = graph_from_adjacency_matrix(dowo_wnet, "undirected", weighted=T)
+set.seed(5)
+plot(dowo_wg, layout = layout_in_circle, vertex.label="", vertex.color = "red", edge.width=E(dowo_wg)$weight*20)
+## WBNU
+wbnu_wgbi = wbnu_wgmm$gbi[,which(colnames(wbnu_wgmm$gbi)%in%birddat$RFID)]
+wbnu_wnet = get_network(wbnu_wgbi, association_index = "SRI")
+wbnu_wg = graph_from_adjacency_matrix(wbnu_wnet, "undirected", weighted=T)
+set.seed(5)
+plot(wbnu_wg, layout = layout_in_circle, vertex.label="", vertex.color = "red", edge.width=E(wbnu_wg)$weight*20)
+
+## 5 coldest days
+## filter data 
+cold <- all_visits %>%
+  filter(index == 10 | index == 11 | index == 45 | index == 18 | index == 19)
+## flocking events
+## DOWO
+dowo_cold <- cold %>%
+  filter(Species == "DOWO")
+dowo_cgmm = gmmevents(dowo_cold$Timestamp, dowo_cold$RFID, dowo_cold$LoggerDate)
+## WBNU
+wbnu_cold <- cold %>%
+  filter(Species == "WBNU")
+wbnu_cgmm = gmmevents(wbnu_cold$Timestamp, wbnu_cold$RFID, wbnu_cold$LoggerDate)
+
+## networks
+## DOWO
+dowo_cgbi = dowo_cgmm$gbi[,which(colnames(dowo_cgmm$gbi)%in%birddat$RFID)]
+## deal with missing individuals
+new_dowo_cgi = matrix(data = rep(0, 335), nrow = 335, ncol = 3)
+row_names = c(1:335)
+col_names = c("011017396E","0700E0FFDB", "0700EE0805")
+dimnames(new_dowo_cgi) <- list(row_names, col_names)
+dowo_cgbi_final <- cbind(dowo_cgbi, new_dowo_cgi)
+## moving on
+dowo_cnet = get_network(dowo_cgbi_final, association_index = "SRI")
+dowo_cg = graph_from_adjacency_matrix(dowo_cnet, "undirected", weighted=T)
+set.seed(5)
+plot(dowo_cg, layout = layout_in_circle, vertex.label = "", vertex.color = "blue", edge.width=E(dowo_cg)$weight*20)
+## WBNU
+wbnu_cgbi = wbnu_cgmm$gbi[,which(colnames(wbnu_cgmm$gbi)%in%birddat$RFID)]
+## deal with missing individuals
+new_wbnu_cgi = matrix(data = rep(0, 204), nrow = 204, ncol = 4)
+row_names = c(1:204)
+col_names = c("01101706AD","0110173C26", "0110175F3E","0700EE3187")
+dimnames(new_wbnu_cgi) <- list(row_names, col_names)
+wbnu_cgbi_final <- cbind(wbnu_cgbi, new_wbnu_cgi)
+## moving on
+wbnu_cnet = get_network(wbnu_cgbi_final, association_index = "SRI")
+wbnu_cg = graph_from_adjacency_matrix(wbnu_cnet, "undirected", weighted=T)
+set.seed(5)
+plot(wbnu_cg, layout = layout_in_circle, vertex.label = "", vertex.color ="blue", edge.width=E(wbnu_cg)$weight*20)
+
+
 
 ##daily average flock size; row sums/# cols for each day
 avg_flocks <- list()
@@ -328,15 +421,3 @@ for(i in 1:length(DOWOflocks)){
 
 
 
-
-
-
-
-
-
-
-
-#made with just WBNU and DOWO
-gsub <- subgraph(g, which(V(g)$species == c("DOWO","WBNU"), useNames = T))
-
-plot(gsub, vertex.label="", edge.width=E(g)$weight*15)
