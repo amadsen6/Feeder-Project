@@ -72,12 +72,22 @@ plot(mw$gam)
 
 ### species level LMMs
 require(lme4)
+
 test_dowo <- glmer(sumvisits ~ scale(nightlows) + (1|RFID), data = morn_visits %>% filter(Species == "DOWO"), family = "poisson")
+summary(test_dowo)
+anova(test_dowo)
 plot(resid(test_dowo))
+boxplot(sumvisits ~ scale(nightlows), data=morn_visits %>% filter(Species == "DOWO"))
 
 test_wbnu <- glmer(sumvisits ~ scale(nightlows) + (1|RFID), data = morn_visits %>% filter(Species == "WBNU"), family = "poisson")
+summary(test_wbnu)
+anova(test_wbnu)
 plot(resid(test_wbnu))
+plot(sumvisits ~ scale(nightlows), data=morn_visits %>% filter(Species == "WBNU"))
 
+
+
+###
 library(rsq)
 library(MuMIn)
 library(arm) 
