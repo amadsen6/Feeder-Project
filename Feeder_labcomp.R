@@ -15,16 +15,16 @@ weather <- weather %>%
   mutate(index = as.numeric(Date-min(Date)+1))
 
 
-demo <- read.csv("C:/Users/ShizukaLab/Downloads/RFID_Records_03052019.csv")
+demo <- read.csv("C:/Users/Annie Madsen/Documents/Madsen/Pioneers Park Project/Bird Banding Data/RFID_Records_03052019.csv")
 demo <- demo %>%
   select(-Date) %>%
   filter(Species != "SCJU")
 
-## quick stats for results section
-ndowo <- all_visits %>%
-  filter(Species == "DOWO")
-nwbnu <- all_visits %>%
-  filter(Species == "WBNU")
+# ## quick stats for results section
+# ndowo <- all_visits %>%
+#   filter(Species == "DOWO")
+# nwbnu <- all_visits %>%
+#   filter(Species == "WBNU")
 
 ### Species Models for DOWO and WBNU
 morn_visits <- all_visits %>%
@@ -229,11 +229,11 @@ dat.wbnu <- all_visits %>%
 DOWOflocks = list()
 for(i in 1:max(dat.dowo$index)){
   dowo_temp = dat.dowo %>% filter(index == i)
-  if (nrow(dowo_temp)<15 | !is.null(dat.dowo$index[i])) next else{
+  if (nrow(dowo_temp)<15) next else{
     DOWOflocks[[i]] = gmmevents(dowo_temp$Timestamp, dowo_temp$RFID, dowo_temp$LoggerDate) 
   }
 }
-save(DOWOflocks, file = "C:/Users/ShizukaLab/Downloads/DOWOflocks.r")
+#save(DOWOflocks, file = "C:/Users/ShizukaLab/Downloads/DOWOflocks.r")
 
 WBNUflocks = list()
 for(i in 1:max(dat.wbnu$index)){
@@ -242,7 +242,7 @@ for(i in 1:max(dat.wbnu$index)){
     WBNUflocks[[i]] = gmmevents(wbnu_temp$Timestamp, wbnu_temp$RFID, wbnu_temp$LoggerDate) 
   }
 }
-save(WBNUflocks, file = "C:/Users/ShizukaLab/Downloads/WBNUflocks.r")
+#save(WBNUflocks, file = "C:/Users/ShizukaLab/Downloads/WBNUflocks.r")
 
 ## Daily networks
 library(igraph)
@@ -256,6 +256,7 @@ library(ggmap)
 birddat = demo[which(demo$Species!=""),] #getting rid of false RFID tags
 
 ## DOWO
+load("DOWOflocks.dat")
 dowo.gbi = list()
 dowo.net = list()
 dowo.g = list()
@@ -283,6 +284,7 @@ for(i in 1:length(dowo.g)){
 }
 
 ## WBNU
+load("WBNUflocks.dat")
 wbnu.gbi = list()
 wbnu.net = list()
 wbnu.g = list()
@@ -345,16 +347,16 @@ wbnu_wgmm = gmmevents(wbnu_warm$Timestamp, wbnu_warm$RFID, wbnu_warm$LoggerDate)
 
 ## networks
 ## DOWO
-dowo_wgbi = dowo_wgmm$gbi[,which(colnames(dowo_wgmm$gbi)%in%birddat$RFID)]
-dowo_wnet = get_network(dowo_wgbi, association_index = "SRI")
+dowo_wgbi = dowo_wgmm$gbi[,which(colnames(dowo_wgmm$gbi)%in%birddat$RFID)]## just grab group by individual matrix
+dowo_wnet = get_network(dowo_wgbi, association_index = "SRI") ## make association matrix
 dowo_wg = graph_from_adjacency_matrix(dowo_wnet, "undirected", weighted=T)
-set.seed(5)
-plot(dowo_wg, layout = layout_in_circle, vertex.label="", vertex.color = "red", edge.width=E(dowo_wg)$weight*20)
+set.seed(5) ## start in the same spot every time
+plot(dowo_wg, layout = coords, vertex.label = "", vertex.color = "red", edge.width=E(dowo_wg)$weight*20)
 ## WBNU
-wbnu_wgbi = wbnu_wgmm$gbi[,which(colnames(wbnu_wgmm$gbi)%in%birddat$RFID)]
-wbnu_wnet = get_network(wbnu_wgbi, association_index = "SRI")
+wbnu_wgbi = wbnu_wgmm$gbi[,which(colnames(wbnu_wgmm$gbi)%in%birddat$RFID)] ## just grab group by individual matrix
+wbnu_wnet = get_network(wbnu_wgbi, association_index = "SRI") ## make association matrix
 wbnu_wg = graph_from_adjacency_matrix(wbnu_wnet, "undirected", weighted=T)
-set.seed(5)
+set.seed(5) ## start in the same spot every time
 plot(wbnu_wg, layout = layout_in_circle, vertex.label="", vertex.color = "red", edge.width=E(wbnu_wg)$weight*20)
 
 ## 5 coldest days
@@ -375,29 +377,31 @@ wbnu_cgmm = gmmevents(wbnu_cold$Timestamp, wbnu_cold$RFID, wbnu_cold$LoggerDate)
 ## DOWO
 dowo_cgbi = dowo_cgmm$gbi[,which(colnames(dowo_cgmm$gbi)%in%birddat$RFID)]
 ## deal with missing individuals
-new_dowo_cgi = matrix(data = rep(0, 335), nrow = 335, ncol = 3)
-row_names = c(1:335)
-col_names = c("011017396E","0700E0FFDB", "0700EE0805")
-dimnames(new_dowo_cgi) <- list(row_names, col_names)
-dowo_cgbi_final <- cbind(dowo_cgbi, new_dowo_cgi)
+new_dowo_cgbi = matrix(data = rep(0), nrow = nrow(dowo_cgbi), ncol = 3)
+row_names = c(1:nrow(dowo_cgbi))
+col_names = c("011017396E","0700EDFFDB", "0700EE08C5")
+dimnames(new_dowo_cgbi) <- list(row_names, col_names)
+temp <- cbind(dowo_cgbi, new_dowo_cgbi)
+dowo_cgbi_final <- temp[,match(colnames(temp), colnames(dowo_wgbi))]
 ## moving on
 dowo_cnet = get_network(dowo_cgbi_final, association_index = "SRI")
 dowo_cg = graph_from_adjacency_matrix(dowo_cnet, "undirected", weighted=T)
-set.seed(5)
-plot(dowo_cg, layout = layout_in_circle, vertex.label = "", vertex.color = "blue", edge.width=E(dowo_cg)$weight*20)
+coords = layout_in_circle(dowo_cg, order = colnames(dowo_wgbi)) ## set graph coords for cold network so nodes stay in the same spot as warm network
+plot(dowo_cg, layout = coords, vertex.label = "", vertex.color = "blue", edge.width=E(dowo_cg)$weight*20)
 ## WBNU
 wbnu_cgbi = wbnu_cgmm$gbi[,which(colnames(wbnu_cgmm$gbi)%in%birddat$RFID)]
 ## deal with missing individuals
-new_wbnu_cgi = matrix(data = rep(0, 204), nrow = 204, ncol = 4)
-row_names = c(1:204)
+new_wbnu_cgbi = matrix(data = rep(0), nrow = nrow(wbnu_cgbi), ncol = 4)
+row_names = c(1:nrow(wbnu_cgbi))
 col_names = c("01101706AD","0110173C26", "0110175F3E","0700EE3187")
-dimnames(new_wbnu_cgi) <- list(row_names, col_names)
-wbnu_cgbi_final <- cbind(wbnu_cgbi, new_wbnu_cgi)
+dimnames(new_wbnu_cgbi) <- list(row_names, col_names)
+temp <- cbind(wbnu_cgbi, new_wbnu_cgbi)
+wbnu_cgbi_final <- temp[,match(colnames(temp), colnames(wbnu_wgbi))]
 ## moving on
 wbnu_cnet = get_network(wbnu_cgbi_final, association_index = "SRI")
 wbnu_cg = graph_from_adjacency_matrix(wbnu_cnet, "undirected", weighted=T)
-set.seed(5)
-plot(wbnu_cg, layout = layout_in_circle, vertex.label = "", vertex.color ="blue", edge.width=E(wbnu_cg)$weight*20)
+coords = layout_in_circle(wbnu_cg, order = colnames(wbnu_wgbi))
+plot(wbnu_cg, layout = coords, vertex.label = "", vertex.color ="blue", edge.width=E(wbnu_cg)$weight*20)
 
 
 
