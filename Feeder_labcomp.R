@@ -279,7 +279,7 @@ for(i in 1:length(dowo.g)){
     dowo.n[[i]]=vcount(dowo.g[[i]]) ## total number of individuals for the day
     dowo.m[[i]]=ecount(dowo.g[[i]])
     dowo.dyads[[i]]=dowo.n[[i]]*(dowo.n[[i]]-1)/2 ## number of possible edges based on number of vertices
-    dowo.density[[i]]=m[[i]]/dowo.dyads[[i]] ## ratio of the number of edges and the number of possible edges 
+    dowo.density[[i]]=dowo.m[[i]]/dowo.dyads[[i]] ## ratio of the number of edges and the number of possible edges 
   }
 }
 
@@ -307,7 +307,7 @@ for(i in 1:length(wbnu.g)){
     wbnu.n[[i]]=vcount(wbnu.g[[i]]) ## total number of individuals for the day
     wbnu.m[[i]]=ecount(wbnu.g[[i]])
     wbnu.dyads[[i]]=wbnu.n[[i]]*(wbnu.n[[i]]-1)/2 ## number of possible edges based on number of vertices
-    wbnu.density[[i]]=m[[i]]/wbnu.dyads[[i]] ## ratio of the number of edges and the number of possible edges 
+    wbnu.density[[i]]=wbnu.m[[i]]/wbnu.dyads[[i]] ## ratio of the number of edges and the number of possible edges 
   }
 }
 
@@ -337,22 +337,33 @@ warm <- all_visits %>%
   filter(index == 7 | index == 40 | index == 33 | index == 2 | index == 39)
 ## flocking events
 ## DOWO
-dowo_warm <- warm %>%
-  filter(Species == "DOWO")
-dowo_wgmm = gmmevents(dowo_warm$Timestamp, dowo_warm$RFID, dowo_warm$LoggerDate)
-## WBNU
-wbnu_warm <- warm %>%
-  filter(Species == "WBNU")
-wbnu_wgmm = gmmevents(wbnu_warm$Timestamp, wbnu_warm$RFID, wbnu_warm$LoggerDate)
+# dowo_warm <- warm %>%
+#   filter(Species == "DOWO")
+# dowo_wgmm = gmmevents(dowo_warm$Timestamp, dowo_warm$RFID, dowo_warm$LoggerDate)
+# save(dowo_wgmm, file = "dowo_wgmm.dat")
+# ## WBNU
+# wbnu_warm <- warm %>%
+#   filter(Species == "WBNU")
+# wbnu_wgmm = gmmevents(wbnu_warm$Timestamp, wbnu_warm$RFID, wbnu_warm$LoggerDate)
+# save(wbnu_wgmm, file = "wbnu_wgmm.dat")
 
 ## networks
 ## DOWO
+load("dowo_wgmm.dat")
 dowo_wgbi = dowo_wgmm$gbi[,which(colnames(dowo_wgmm$gbi)%in%birddat$RFID)]## just grab group by individual matrix
+## just fix some stuff real quick like
+# new_dowo_wgbi = matrix(data = rep(0), nrow = nrow(dowo_wgbi), ncol = 1)
+# row_names = c(1:nrow(dowo_wgbi))
+# col_names = ""
+# dimnames(new_dowo_wgbi) <- list(row_names, col_names)
+# dowo_wgbi_final <- cbind(dowo_wgbi, new_dowo_wgbi)
+## okay let's move on with our lives
 dowo_wnet = get_network(dowo_wgbi, association_index = "SRI") ## make association matrix
 dowo_wg = graph_from_adjacency_matrix(dowo_wnet, "undirected", weighted=T)
 set.seed(5) ## start in the same spot every time
-plot(dowo_wg, layout = coords, vertex.label = "", vertex.color = "red", edge.width=E(dowo_wg)$weight*20)
+plot(dowo_wg, layout = layout_in_circle, vertex.label = "", vertex.color = "red", edge.width=E(dowo_wg)$weight*20)
 ## WBNU
+load("wbnu_wgmm.dat")
 wbnu_wgbi = wbnu_wgmm$gbi[,which(colnames(wbnu_wgmm$gbi)%in%birddat$RFID)] ## just grab group by individual matrix
 wbnu_wnet = get_network(wbnu_wgbi, association_index = "SRI") ## make association matrix
 wbnu_wg = graph_from_adjacency_matrix(wbnu_wnet, "undirected", weighted=T)
@@ -368,10 +379,12 @@ cold <- all_visits %>%
 dowo_cold <- cold %>%
   filter(Species == "DOWO")
 dowo_cgmm = gmmevents(dowo_cold$Timestamp, dowo_cold$RFID, dowo_cold$LoggerDate)
+save(dowo_cgmm, file = "dowo_cgmm.dat")
 ## WBNU
 wbnu_cold <- cold %>%
   filter(Species == "WBNU")
 wbnu_cgmm = gmmevents(wbnu_cold$Timestamp, wbnu_cold$RFID, wbnu_cold$LoggerDate)
+save(wbnu_cgmm, file = "wbnu_cgmm.dat")
 
 ## networks
 ## DOWO
