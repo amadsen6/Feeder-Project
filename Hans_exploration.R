@@ -13,9 +13,10 @@ usedat=all_visits %>% filter(Species=="WBNU"|Species=="DOWO") %>% arrange(RFID, 
 visits.daily=usedat%>% group_by(RFID, Date) %>% count()
 
 ##visits.daily is the total number of visits to any feeder for a given bird on a given day
-
+#write.csv(visits.daily, "dailyvisits.csv")
 
 visits.daily.feeders=usedat%>% group_by(RFID, Date) %>% select(RFID, Date, Logger) %>% summarise(n_distinct(Logger))
+#write.csv(visits.daily.feeders, "dailyfeeders.csv")
 ##wbnu.visits.daily.feeders is the number of distinct feeders used by each bird on a given day
 
 logger_array=usedat%>% group_by(RFID, Date) %>% select(Logger,  Date,RFID) %>% table()
@@ -48,3 +49,9 @@ shannon.wide.dat= wide.dat  %>% mutate(sum=sum(LOGGER04,LOGGER08,LOGGER07,LOGGER
 shannon=shannon.wide.dat %>% select(Date, RFID, H)
 
 boxplot(H~RFID, data=shannon)
+
+write.csv(shannon, "dailyshannon.csv")
+
+daily_dat=inner_join(visits.daily, visits.daily.feeders) %>% inner_join(shannon)
+
+write.csv(daily_dat, "daily_data.csv")
