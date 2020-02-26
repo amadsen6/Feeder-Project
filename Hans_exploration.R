@@ -42,4 +42,9 @@ indiv_date_feeders=pivot_wider(visits.daily.feeders, id_cols=Date, names_from = 
 #######
 head(usedat)
 
-usedat%>% select(Datetime, RFID, Logger) %>% group_by(RFID)
+wide.dat=usedat%>% select(Date, Datetime, RFID, Logger) %>% group_by(RFID, Date, Logger) %>% count() %>% pivot_wider(values_from = n, names_from = Logger)
+
+shannon.wide.dat= wide.dat  %>% mutate(sum=sum(LOGGER04,LOGGER08,LOGGER07,LOGGER05,LOGGER02,LOGGER06,LOGGER01,LOGGER03, na.rm=T)) %>% filter(sum>10) %>% mutate(H=sum(-LOGGER01/sum*log(LOGGER01/sum), -LOGGER02/sum*log(LOGGER02/sum), -LOGGER03/sum*log(LOGGER03/sum), -LOGGER04/sum*log(LOGGER04/sum), -LOGGER05/sum*log(LOGGER05/sum), -LOGGER06/sum*log(LOGGER06/sum), -LOGGER07/sum*log(LOGGER07/sum), -LOGGER08/sum*log(LOGGER08/sum), na.rm=T))                                                                                              
+shannon=shannon.wide.dat %>% select(Date, RFID, H)
+
+boxplot(H~RFID, data=shannon)
