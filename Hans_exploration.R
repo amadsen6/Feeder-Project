@@ -32,4 +32,14 @@ indiv_date_sum=apply(logger_array, c(2,3), sum)
 
 indiv_avg_visit=colMeans(indiv_date_sum)
 
-write.csv(indiv_date_sum, "visits_indiv_x_date.csv")
+#write.csv(indiv_date_sum, "visits_indiv_x_date.csv")
+
+
+indiv_date_feeders=pivot_wider(visits.daily.feeders, id_cols=Date, names_from = RFID, values_from = `n_distinct(Logger)`)
+
+#write.csv(indiv_date_feeders, "feeders_indivxdate.csv")
+
+#######
+head(usedat)
+
+usedat%>% select(Datetime, RFID, Logger) %>% group_by(RFID)
