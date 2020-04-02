@@ -22,7 +22,13 @@ demo <- demo %>%
   filter(Species != "SCJU")
 
 ##DS 4/2/20
-all_visits %>% group_by(Datetime, Logger) %>% summarise(sumvisits=n()) 
+datasummary=all_visits %>% group_by(Date, Logger) %>% summarise(sumvisits=n()) %>% pivot_wider(id_cols=Date, names_from=Logger, values_from=sumvisits)
+
+#write.csv(datasummary, "datasummary.csv")
+
+#dates with no more than one feeder has NA
+usedates=as.Date(c("2019-01-29", "2019-01-30", "2019-02-04", "2019-02-15", "2019-02-16", "2019-02-17", "2019-02-18", "2019-02-19", "2019-02-20", "2019-02-22", "2019-02-26", "2019-02-27", "2019-02-28", "2019-03-02", "2019-03-04", "2019-03-05", "2019-03-06", "2019-03-07", "2019-03-08"))
+
 
 
 ## quick stats for results section
@@ -55,6 +61,7 @@ newdata <- morn_visits[-9]
 newdat2=newdata %>%  group_by(RFID) %>% mutate(lag1=dplyr::lag(nightlows)) %>% mutate(lead1=dplyr::lead(nightlows))
 
 
+newdat3= newdat2 %>% filter(Date %in% usedates)
 ####
 
 
@@ -62,14 +69,14 @@ newdat2=newdata %>%  group_by(RFID) %>% mutate(lag1=dplyr::lag(nightlows)) %>% m
 require(mgcv)
 md <- gamm(sumvisits ~ s(nightlows, fx = FALSE, bs = "tp") + s(RFID, bs = "re"),
            family = poisson,
-           data = morn_visits %>% filter(Species == "DOWO"))
+           data = newdat3 %>% filter(Species == "DOWO"))
 summary(md$gam)
 summary(md$lme)
 plot(md$gam)
 
 mw <- gamm(sumvisits ~ s(nightlows, fx = FALSE, bs = "tp") + s(RFID, bs = "re"),
            family = poisson,
-           data = morn_visits %>% filter(Species == "WBNU"))
+           data = newdat3 %>% filter(Species == "WBNU"))
 summary(mw$gam)
 summary(mw$lme)
 plot(mw$gam)
@@ -77,19 +84,19 @@ plot(mw$gam)
 ### species level LMMs
 require(lme4)
 
-test_dowo <- glmer(sumvisits ~ scale(nightlows) + (1|RFID), data = morn_visits %>% filter(Species == "DOWO"), family = "poisson")
+test_dowo <- glmer(sumvisits ~ scale(nightlows) + (1|RFID), data = newdat3 %>% filter(Species == "DOWO"), family = "poisson")
 summary(test_dowo)
 anova(test_dowo)
 plot(resid(test_dowo))
 boxplot(sumvisits ~ scale(nightlows), data=morn_visits %>% filter(Species == "DOWO"))
 
-test_wbnu <- glmer(sumvisits ~ scale(nightlows) + (1|RFID), data = morn_visits %>% filter(Species == "WBNU"), family = "poisson")
+test_wbnu <- glmer(sumvisits ~ scale(nightlows) + (1|RFID), data = newdat3 %>% filter(Species == "WBNU"), family = "poisson")
 summary(test_wbnu)
 anova(test_wbnu)
 plot(resid(test_wbnu))
 plot(sumvisits ~ scale(nightlows), data=morn_visits %>% filter(Species == "WBNU"))
 
-
+plot(sumvisits~scale(nightlows), data = newdat3 %>% filter(Species == "WBNU"))
 
 ###
 library(rsq)
@@ -111,23 +118,23 @@ plot(resid(test_dowo))
 summary(test_dowo)
 
 
-test_wbnu <- glmer(sumvisits ~ scale(nightlows) + (1|RFID), data = morn_visits %>% filter(Species == "WBNU"), family = "poisson")
+test_wbnu <- glmer(sumvisits ~ scale(nightlows) + (1|RFID), data = newdat2 %>% filter(Species == "WBNU"), family = "poisson")
 plot(resid(test_wbnu))
 summary(test_wbnu)
 
 r.squaredGLMM(test_dowo)
 r.squaredGLMM(test_wbnu)
 
-test_dowo_lag <- glmer(sumvisits ~ scale(lag1) + (1|RFID), data = newdat2 %>% filter(Species == "DOWO") %>% filter(is.na(lag1)==F), family = "poisson")
+test_dowo_lag <- glmer(sumvisits ~ scale(lag1) + (1|RFID), data = newdat3 %>% filter(Species == "DOWO") %>% filter(is.na(lag1)==F), family = "poisson")
 summary(test_dowo_lag)
 
-test_wbnu_lag <- glmer(sumvisits ~ scale(lag1) + (1|RFID), data = newdat2 %>% filter(Species == "WBNU") %>% filter(is.na(lag1)==F), family = "poisson")
-summary(test_wbnu_lead)
+test_wbnu_lag <- glmer(sumvisits ~ scale(lag1) + (1|RFID), data = newdat3 %>% filter(Species == "WBNU") %>% filter(is.na(lag1)==F), family = "poisson")
+summary(test_wbnu_lag)
 
-test_dowo_lead <- glmer(sumvisits ~ scale(lead1) + (1|RFID), data = newdat2 %>% filter(Species == "DOWO") %>% filter(is.na(lead1)==F), family = "poisson")
+test_dowo_lead <- glmer(sumvisits ~ scale(lead1) + (1|RFID), data = newdat3 %>% filter(Species == "DOWO") %>% filter(is.na(lead1)==F), family = "poisson")
 summary(test_dowo_lead)
 
-test_wbnu_lead <- glmer(sumvisits ~ scale(lead1) + (1|RFID), data = newdat2 %>% filter(Species == "WBNU") %>% filter(is.na(lead1)==F), family = "poisson")
+test_wbnu_lead <- glmer(sumvisits ~ scale(lead1) + (1|RFID), data = newdat3 %>% filter(Species == "WBNU") %>% filter(is.na(lead1)==F), family = "poisson")
 summary(test_wbnu_lead)
 
 r.squaredGLMM(test_dowo)
