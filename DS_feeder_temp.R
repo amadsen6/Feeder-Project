@@ -21,6 +21,10 @@ demo <- demo %>%
   select(-Date) %>%
   filter(Species != "SCJU")
 
+##DS 4/2/20
+all_visits %>% group_by(Datetime, Logger) %>% summarise(sumvisits=n()) 
+
+
 ## quick stats for results section
 ndowo <- all_visits %>%
   filter(Species == "DOWO")
