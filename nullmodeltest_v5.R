@@ -35,15 +35,15 @@ mrqap.dsp(dowosim~dowoadj+dowospat) #using activity similarity as the response v
 mrqap.dsp(wbnusim~wbnuadj+wbnuspat)
 
 # #now, normalize all matrix values so that minimum number = 0 and maximum number = 1
-# normalize_matrix=function(m){
-#   (m-min(m, na.rm=T))/(max(m, na.rm=T)-min(m, na.rm=T))
-# }
-# 
-# dowosim.norm=normalize_matrix(dowosim)
-# dowoadj.norm=normalize_matrix(dowoadj)
-# dowospat.norm=normalize_matrix(dowospat)
-# 
-# mrqap.dsp(dowosim.norm~dowoadj.norm+dowospat.norm) #same test, but now with normalized values. The results are the same but the coefficient is different.
+normalize_matrix=function(m){
+  (m-min(m, na.rm=T))/(max(m, na.rm=T)-min(m, na.rm=T))
+}
+
+dowosim.norm=normalize_matrix(dowosim)
+dowoadj.norm=normalize_matrix(dowoadj)
+dowospat.norm=normalize_matrix(dowospat)
+
+mrqap.dsp(dowosim.norm~dowoadj.norm+dowospat.norm) #same test, but now with normalized values. The results are the same but the coefficient is different.
 
 ###dowo permutations
 
