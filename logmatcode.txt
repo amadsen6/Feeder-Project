@@ -1,0 +1,20 @@
+##### Spatial correlation matrix
+require(tidyverse)
+load("C:/Users/Shizuka Lab/Documents/Madsen/R/all_visits.dat")
+
+### summarise number of visits at each feeder for each bird
+vis <- all_visits %>%
+  group_by(Logger, RFID) %>%
+  summarise(logvis = n()) %>%
+  ungroup()
+
+### reshape data frame and calculate proportion of visits at each feeder
+require(reshape)
+logsums <- cast(vis, Logger ~ RFID, value = "logvis")
+logsums[is.na(logsums)] <- 0
+y = colSums(logsums)
+fin <- as.data.frame(mapply("/", logsums[-1], y))
+
+### make correlation/similarity matrix
+require(proxy)
+logmat <- as.matrix(simil(fin, by_rows = FALSE))

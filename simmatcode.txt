@@ -1,0 +1,38 @@
+### Feeder visit z-scores
+load("C:/Users/Shizuka Lab/Documents/Madsen/R/all_visits.dat")
+require(tidyverse)
+
+## daily visits per individual
+dv <- all_visits %>%
+  filter(Date < "2019-03-11" & Date > "2019-01-25") %>%
+  group_by(RFID, Date) %>%
+  summarise(dailyvisits = n()) 
+
+## mean daily visits per individual
+ref <- dv %>%
+  group_by(RFID) %>%
+  summarise(mdv = mean(dailyvisits)) %>%
+  ungroup()
+
+## sd of daily visits
+dvsd <- sd(dv$dailyvisits)
+
+## build the df
+require(reshape)
+mat_ddm <- cast(dv, Date ~ RFID, value = "dailyvisits")
+mat_ddm[is.na(mat_ddm)] <- 0
+mat <- mat_ddm[2:46]/dvsd
+
+myvec <- (ref$mdv[match(names(mat_ddm[2:45]), ref$RFID)])/dvsd
+
+mat_final <- mat[1] - myvec[1]
+for(i in 2:44){
+  mat_temp <- mat[i] - myvec[i]
+  mat_final <- cbind(mat_final, mat_temp)
+}
+#mat_final <- cbind(mat_ddm$Date, mat_final)
+
+### Similarity Matrix
+## how similar are individuals' daily visitation z-scores?
+require(proxy)
+simmat <- as.matrix(simil(mat_final, by_rows = FALSE))
