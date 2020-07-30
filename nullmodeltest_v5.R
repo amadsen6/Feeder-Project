@@ -43,7 +43,11 @@ dowosim.norm=normalize_matrix(dowosim)
 dowoadj.norm=normalize_matrix(dowoadj)
 dowospat.norm=normalize_matrix(dowospat)
 
-mrqap.dsp(dowosim.norm~dowoadj.norm+dowospat.norm) #same test, but now with normalized values. The results are the same but the coefficient is different.
+dowo.mrqap.norm=mrqap.dsp(dowosim.norm~dowoadj.norm+dowospat.norm) #same test, but now with normalized values. The results are the same but the coefficient is different.
+dowo.mrqap.norm
+str(dowo.mrqap.norm)
+mean(dowo.mrqap.norm$fitted.values)
+
 
 ###dowo permutations
 
