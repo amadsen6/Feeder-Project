@@ -1,9 +1,9 @@
 {
-    "path" : "~/Documents/GitHub/Feeder-Project",
-    "sortOrder" : [
+    "path": "~/Documents/GitHub/Feeder-Project",
+    "sortOrder": [
         {
-            "ascending" : true,
-            "columnIndex" : 2
+            "columnIndex": 2,
+            "ascending": true
         }
     ]
 }
