@@ -18,7 +18,7 @@ weather <- weather %>%
 
 demo <- read.csv("RFID_Records_fixed.csv")
 demo <- demo %>%
-  select(-Date) %>%
+  dplyr::select(-Date) %>%
   filter(Species != "SCJU")
 
 ##DS 4/2/20
@@ -47,7 +47,7 @@ morn_visits <- all_visits %>%
   ungroup() %>%
   left_join(weather, by = "Date") %>%
   left_join(demo, by = "RFID") %>%
-  select(Date, RFID, Species, Weight, Tarsus, Wing, Sex, Age, Culmen, nightlows, sumvisits) %>%
+  dplyr::select(Date, RFID, Species, Weight, Tarsus, Wing, Sex, Age, Culmen, nightlows, sumvisits) %>%
   filter(Date < "2019-03-11" & Date > "2019-01-25") %>%
   filter(Species == "DOWO" | Species == "WBNU")
 
@@ -69,14 +69,14 @@ newdat3= newdat2 %>% filter(Date %in% usedates)
 require(mgcv)
 md <- gamm(sumvisits ~ s(nightlows, fx = FALSE, bs = "tp") + s(RFID, bs = "re"),
            family = poisson,
-           data = newdat3 %>% filter(Species == "DOWO"))
+           data = morn_visits %>% filter(Species == "DOWO"))
 summary(md$gam)
 summary(md$lme)
 plot(md$gam)
 
 mw <- gamm(sumvisits ~ s(nightlows, fx = FALSE, bs = "tp") + s(RFID, bs = "re"),
            family = poisson,
-           data = newdat3 %>% filter(Species == "WBNU"))
+           data = morn_visits %>% filter(Species == "WBNU"))
 summary(mw$gam)
 summary(mw$lme)
 plot(mw$gam)
@@ -113,12 +113,12 @@ library(MuMIn)
 library(arm) 
 library(lmerTest)
 
-test_dowo <- glmer(sumvisits ~ scale(nightlows) + (1|RFID), data = newdat2 %>% filter(Species == "DOWO"), family = "poisson")
+test_dowo <- glmer(sumvisits ~ scale(nightlows) + (1|RFID), data = newdat %>% filter(Species == "DOWO"), family = "poisson")
 plot(resid(test_dowo))
 summary(test_dowo)
 
 
-test_wbnu <- glmer(sumvisits ~ scale(nightlows) + (1|RFID), data = newdat2 %>% filter(Species == "WBNU"), family = "poisson")
+test_wbnu <- glmer(sumvisits ~ scale(nightlows) + (1|RFID), data = newdat %>% filter(Species == "WBNU"), family = "poisson")
 plot(resid(test_wbnu))
 summary(test_wbnu)
 

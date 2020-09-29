@@ -2,7 +2,7 @@
 
 require(tidyverse)
 require(lubridate)
-require(mgcv)
+
 ##data
 load("all_visits.dat")
 load("weather.dat")
@@ -40,15 +40,9 @@ morn_visits_to_publish <- all_visits %>%
   select(Date, RFID, Species, Weight, Tarsus, Wing, Sex, Age, Culmen, nightlows, sumvisits) %>%
   filter(Date < "2019-03-11" & Date > "2019-01-25") %>%
   filter(Species == "DOWO" | Species == "WBNU") %>%
-  select(Date, RFID, Species, Sex, nightlows)
+  select(Date, RFID, Species, Sex, sumvisits,nightlows)
 
-morn_visits$RFID <- as.factor(morn_visits$RFID)
+morn_visits_to_publish$RFID <- as.factor(morn_visits$RFID)
 
-newdat=morn_visits_to_publish
+write.csv(morn_visits_to_publish, "Supplementaldata_morningvisits.csv", row.names = F)
 
-md <- gamm(sumvisits ~ s(nightlows, fx = FALSE, bs = "tp") + s(RFID, bs = "re"),
-           family = poisson,
-           data = newdat %>% filter(Species == "DOWO"))
-summary(md$gam)
-summary(md$lme)
-plot(md$gam)
