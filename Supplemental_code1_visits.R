@@ -1,7 +1,7 @@
 #### Analysis code, Part 1 for Madsen, Vander Meiden & Shizuka: Social partners and temperature jointly affect morning foraging activity of small birds in winter#####
 
 #generates stats for analysis of feeder visits and temperature
-#generates Figure 2 & Supplemental Figure 1
+#generates Figure 2 & Supplemental Figure 3 & 4
 
 require(tidyverse)
 require(lubridate)
