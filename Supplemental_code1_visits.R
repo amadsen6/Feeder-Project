@@ -1,4 +1,7 @@
-#### Analysis code for Madsen, Vander Meiden & Shizuka: Social partners and temperature jointly affect morning foraging activity of small birds in winter#####
+#### Analysis code, Part 1 for Madsen, Vander Meiden & Shizuka: Social partners and temperature jointly affect morning foraging activity of small birds in winter#####
+
+#generates stats for analysis of feeder visits and temperature
+#generates Figure 2 & Supplemental Figure 1
 
 require(tidyverse)
 require(lubridate)
@@ -83,3 +86,30 @@ ggplot(test) +
   labs(x = "Lowest Overnight Temperature (\u00B0C)", y = "Morning Foraging Activity (Visits/Individual)") +
   facet_wrap("SpeciesName", ncol = 2) +
   theme(strip.text.x = element_text(size = 16), strip.background = element_blank(), strip.placement = "outside", axis.title.x = element_text(size = 13), axis.title.y = element_text(size = 13))
+
+
+ggplot()
+
+
+## Figure S1
+dowo_df <- dat %>% 
+  filter(Species == "DOWO")
+ggplot(dowo_df, aes(nightlows, sumvisits)) +
+  geom_point() +
+  geom_smooth() +
+  facet_wrap("RFID") +
+  theme_bw() +
+  labs(title = "Downy Woodpeckers", x = "Lowest Overnight Temperature (\u00B0C)" , y = "Morning Foraging Activity (total visits)") +
+  theme(plot.title = element_text(size = 22, face = "bold"), axis.title.x = element_text(size = 22, face = "bold"), axis.title.y = element_text(size = 22, face = "bold"), axis.text.x = element_text(size = 13), axis.text.y = element_text(size = 13))
+
+wbnu_df <- dat %>% 
+  filter(Species == "WBNU")
+ggplot(wbnu_df, aes(nightlows, sumvisits)) +
+  geom_point() +
+  geom_smooth() +
+  facet_wrap("RFID") +
+  theme_bw() +
+  labs(title = "White-breasted Nuthatches", x = "Lowest Overnight Temperature (\u00B0C)" , y = "Morning Foraging Activity (total visits)") +
+  theme(plot.title = element_text(size = 22, face = "bold"), axis.title.x = element_text(size = 22, face = "bold"), axis.title.y = element_text(size = 22, face = "bold"), axis.text.x = element_text(size = 13), axis.text.y = element_text(size = 13))
+
+##
