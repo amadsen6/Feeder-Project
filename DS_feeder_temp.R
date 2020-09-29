@@ -307,7 +307,7 @@ for(i in 1:max(dat.dowo$index)){
     DOWOflocks[[i]] = gmmevents(dowo_temp$Timestamp, dowo_temp$RFID, dowo_temp$Logger) 
   }
 }
-save(DOWOflocks, file = "C:/Users/ShizukaLab/Downloads/DOWOflocks.r")
+save(DOWOflocks, file = "DOWOflocks3.rdata")
 
 WBNUflocks = list()
 for(i in 1:max(dat.wbnu$index)){
