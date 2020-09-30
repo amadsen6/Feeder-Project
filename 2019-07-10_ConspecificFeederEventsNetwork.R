@@ -1,4 +1,4 @@
-#.libPaths("C:/Users/Laura/Desktop/RLibrary")
+.libPaths("C:/Users/Laura/Desktop/RLibrary")
 library(tidyverse)
 library(stringr)
 library(igraph)
@@ -28,23 +28,27 @@ birddat = read.csv("RFID_Records_fixed.csv", colClasses = c("RFID" ="character")
 dat = merge(datno4, birddat[, c("RFID", "Species")], by="RFID")
 
 datDOWO = filter(dat, Species == "DOWO")
+datDOWO$X = NULL
 datDOWO = distinct(datDOWO)
 
 datWBNU = filter(dat, Species == "WBNU")
-datWBNU = datWBNU[,which(colnames(datWBNU)!="X")]
+datWBNU$X = NULL
 datWBNU = distinct(datWBNU)
+
 
 #testing issues
 WBNUtest = filter(datWBNU, LoggerDate == "LOGGER02_1_29")
 test = gmmevents(WBNUtest$Timestamp, WBNUtest$RFID, WBNUtest$LoggerDate)
 
-WBNUtest2 = filter(datWBNU, LoggerDate == "LOGGER01_1_29")
-test2 = gmmevents(WBNUtest2$Timestamp, WBNUtest2$RFID, WBNUtest2$LoggerDate)
+WBNUtest = filter(datWBNU, Logger != "LOGGER02")
 
-DOWOtest = filter(datDOWO, LoggerDate == "LOGGER02_1_29")
-test.dowo = gmmevents(DOWOtest$Timestamp, DOWOtest$RFID, DOWOtest$LoggerDate)
+
+
 #running events by species
 
-DOWOflocks = gmmevents(datDOWO$Timestamp, datDOWO$RFID, datDOWO$LoggerDate) #stopped at logger 2 2-24 for some reason, said error replacement legth 0
+DOWOflocks = gmmevents(datDOWO$Timestamp, datDOWO$RFID, datDOWO$LoggerDate) 
+saveRDS(DOWOflocks, "conspecificDOWOflocks.rds")
 
-WBNUflocks = gmmevents(datWBNU$Timestamp, datWBNU$RFID, datWBNU$LoggerDate) #stopeed after logger 2 1-29 replacement has length zero
+
+WBNUflocks = gmmevents(datWBNU$Timestamp, datWBNU$RFID, datWBNU$LoggerDate) 
+saveRDS(WBNUflocks, "conspecificWBNUflocks.rds")
