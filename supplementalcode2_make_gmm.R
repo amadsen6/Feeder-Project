@@ -44,17 +44,17 @@ datWBNU = datWBNU[,which(colnames(datWBNU)!="X")]
 datWBNU = distinct(datWBNU)
 
 #testing issues
-WBNUtest = filter(datWBNU, LoggerDate == "LOGGER02_1_29")
+#WBNUtest = filter(datWBNU, LoggerDate == "LOGGER02_1_29")
 test = gmmevents(WBNUtest$Timestamp, WBNUtest$RFID, WBNUtest$LoggerDate)
 
-WBNUtest2 = filter(datWBNU, LoggerDate == "LOGGER01_1_29")
+#WBNUtest2 = filter(datWBNU, LoggerDate == "LOGGER01_1_29")
 test2 = gmmevents(WBNUtest2$Timestamp, WBNUtest2$RFID, WBNUtest2$LoggerDate)
 
-DOWOtest = filter(datDOWO, LoggerDate == "LOGGER02_1_29")
+#DOWOtest = filter(datDOWO, LoggerDate == "LOGGER02_1_29")
 test.dowo = gmmevents(DOWOtest$Timestamp, DOWOtest$RFID, DOWOtest$LoggerDate)
 #running events by species
 
-DOWOflocks_replicate = gmmevents(datDOWO$Timestamp, datDOWO$RFID, datDOWO$LoggerDate) 
+DOWOflocks_replicate4 = gmmevents(datDOWO$Timestamp, datDOWO$RFID, datDOWO$LoggerDate) 
 
 WBNUflocks = gmmevents(datWBNU$Timestamp, datWBNU$RFID, datWBNU$LoggerDate) #stopeed after logger 2 1-29 replacement has length zero
 
@@ -65,11 +65,14 @@ load("DOWOflocks_replicate")
 gbi1=gmmDOWO$gbi
 gbi2=DOWOflocks$gbi
 gbi3=DOWOflocks_replicate$gbi
-
+gbi5=DOWOflocks_replicate2$gbi
+gbi6=DOWOflocks_replicate4$gbi
 dim(gbi1)
 dim(gbi2)
 dim(gbi3)
-
+dim(gbi5)
+dim(gbi6)
+dim(DOWOflocks_replicate2$gbi)
 ###
 load('all_visits.dat')
 all_visits <- all_visits %>%
@@ -87,3 +90,17 @@ dat.wbnu <- all_visits %>%
   mutate(LoggerDate = paste0(Logger, Date))
 
 dowoflocks_rep2=gmmevents(dat.dowo$Timestamp, dat.dowo$RFID, dat.dowo$LoggerDate)
+gbi4=dowoflocks_rep2$gbi
+dim(gbi4)
+
+dowo_net=graph_from_adjacency_matrix(get_network(gbi4), mode="undirected", weighted=T)
+indivs=read.csv("RFID_Records_fixed.csv")
+indivs$RFID=as.character(indivs$RFID)
+head(indivs)
+
+V(dowo_net)$sex=indivs[match(V(dowo_net)$name, indivs$RFID),"Sex"]
+sex_color=data.frame(sex=c("F", "M", "U"), color=c("yellow", "purple", "white"))
+plot(dowo_net, vertex.color=sex_color[match(V(dowo_net)$sex, sex_color$sex), "color"], vertex.label="", edge.width=E(dowo_net)$weight*30)
+
+sexassort_dowo=assortment.discrete(as_adj(dowo_net, sparse=F, attr="weight"), V(dowo_net)$sex, SE=T)
+sexassort_dowo$r

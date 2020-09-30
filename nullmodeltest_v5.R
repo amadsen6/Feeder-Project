@@ -124,36 +124,40 @@ emp.mod.wbnu=mrqap.dsp(wbnusim.norm~wbnuadj.norm+wbnuspat.norm)
 emp.coef.wbnu=emp.mod.wbnu$coefficients[2]
 
 #now do 1000 sets of swaps and store results
-# times=1000
-# wbnuperm.adjs=list()
-# for(i in 1:times){
-#   wbnuperm_repeat=network_swap(wbnugbi.filt, data_format="GBI", swaps=10000, association_matrix = wbnuadj, locations=wbnu.locations, days=wbnu.days, within_day=TRUE, within_location=FALSE)
-#   wbnuperm.adjs[[i]]=wbnuperm_repeat$Association_index
-# }
-# 
-# wbnuperm.mrqap.coefs=vector(length=times)
-# for(j in 1:times){
-#   adj=wbnuperm.adjs[[j]]
-#   diag(adj)=NA
-#   adj.norm=normalize_matrix(adj)
-#   wbnuperm.mrqap.coefs[j]=mrqap.dsp(wbnusim.norm~adj.norm+wbnuspat.norm, randomisations=1)$coefficients[2]
-# }
-# 
-# wbnuperm.mrqap.coefs
-# 
-# p.wbnu=(length(which(wbnuperm.mrqap.coefs>=emp.coef.wbnu))+1)/(times+1)
-# p.wbnu #p-value
-# 
-# ci.wbnu=quantile(wbnuperm.mrqap.coefs, probs=c(0.025, 0.975))
-# ci.wbnu #confidence interval of null model -- this likely will not overlap the empirical coefficient value
-# 
+system.time({
+times=10
+wbnuperm.adjs=list()
+for(i in 1:times){
+  wbnuperm_repeat=network_swap(wbnugbi.filt, data_format="GBI", swaps=10000, association_matrix = wbnuadj, locations=wbnu.locations, days=wbnu.days, within_day=TRUE, within_location=FALSE)
+  wbnuperm.adjs[[i]]=wbnuperm_repeat$Association_index
+}
+
+wbnuperm.mrqap.coefs=vector(length=times)
+for(j in 1:times){
+  adj=wbnuperm.adjs[[j]]
+  diag(adj)=NA
+  adj.norm=normalize_matrix(adj)
+  wbnuperm.mrqap.coefs[j]=mrqap.dsp(wbnusim.norm~adj.norm+wbnuspat.norm, randomisations=1)$coefficients[2]
+}
+})
+
+wbnuperm.mrqap.coefs
+
+p.wbnu=(length(which(wbnuperm.mrqap.coefs>=emp.coef.wbnu))+1)/(times+1)
+p.wbnu #p-value
+
+ci.wbnu=quantile(wbnuperm.mrqap.coefs, probs=c(0.025, 0.975))
+ci.wbnu #confidence interval of null model -- this likely will not overlap the empirical coefficient value
+
 # 
 # save(wbnuperm.adjs, wbnuperm.mrqap.coefs, p.wbnu, ci.wbnu, file="dowo_results_20190814_rdat")
 
 
 ### WBNU with parallel processing!
 library(foreach)
-times=1000
+library(parallel)
+library(doParallel)
+times=10
 n.cores=detectCores()
 system.time({
   registerDoParallel(n.cores)
@@ -180,4 +184,4 @@ ci.wbnu=quantile(wbnuperm.mrqap.coefs, probs=c(0.025, 0.975))
 ci.wbnu #confidence interval of null model -- this likely will not overlap the empirical coefficient value
 
 
-save(wbnuperm.adjs, wbnuperm.mrqap.coefs, p.wbnu, ci.wbnu, file="wbnu_results_20190814_rdat")
+#save(wbnuperm.adjs, wbnuperm.mrqap.coefs, p.wbnu, ci.wbnu, file="wbnu_results_20190814_rdat")
