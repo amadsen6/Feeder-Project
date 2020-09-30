@@ -1,10 +1,9 @@
-#.libPaths("C:/Users/Laura/Desktop/RLibrary")
 library(tidyverse)
 library(stringr)
-library(igraph)
+#library(igraph)
 library(asnipe)
 library(lubridate)
-library(assortnet)
+#library(assortnet)
 
 #Feeder RFID data for all species unsorted
 datnut = read.csv("CleanFeederData3_10.csv")
@@ -61,7 +60,7 @@ WBNUflocks = gmmevents(datWBNU$Timestamp, datWBNU$RFID, datWBNU$LoggerDate) #sto
 
 ###
 gmmDOWO=readRDS("conspecificDOWOflocks.rds")
-load("DOWOflocks_replicate")
+#load("DOWOflocks_replicate")
 gbi1=gmmDOWO$gbi
 gbi2=DOWOflocks$gbi
 gbi3=DOWOflocks_replicate$gbi
@@ -90,7 +89,7 @@ dat.wbnu <- all_visits %>%
   mutate(LoggerDate = paste0(Logger, Date))
 
 dowoflocks_rep2=gmmevents(dat.dowo$Timestamp, dat.dowo$RFID, dat.dowo$LoggerDate)
-gbi4=dowoflocks_rep2$gbi
+gbi44=dowoflocks_rep2$gbi
 dim(gbi4)
 
 dowo_net=graph_from_adjacency_matrix(get_network(gbi4), mode="undirected", weighted=T)
