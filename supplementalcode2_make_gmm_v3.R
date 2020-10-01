@@ -1,6 +1,7 @@
+### Re-doing the gmmevents function...
+
 library(tidyverse)
 library(stringr)
-
 library(asnipe)
 library(lubridate)
 
@@ -24,4 +25,5 @@ dat.wbnu <- all_visits %>%
 dowoflocks=gmmevents(dat.dowo$Timestamp, dat.dowo$RFID, dat.dowo$LoggerDate)
 wbnuflocks=gmmevents(dat.wbnu$Timestamp, dat.wbnu$RFID, dat.wbnu$LoggerDate)
 
-
+saveRDS(dowoflocks, "conspecificDOWOflocks_v2.rds")
+saveRDS(wbnuflocks, "conspecificWBNUflocks_v2.rds")

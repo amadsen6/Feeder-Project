@@ -18,7 +18,7 @@ read_csv_filename <- function(filename){
 
 
 
-RFIDdata <- as.data.frame(rbindlist(lapply(filenames, read_csv_filename), fill=T)) \
+RFIDdata <- as.data.frame(rbindlist(lapply(filenames, read_csv_filename), fill=T))
 
 ##Use this when doing multiple folders
 RFIDdataClean <-RFIDdata %>%
