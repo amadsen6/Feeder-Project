@@ -74,8 +74,8 @@ p_assort_wbnu
 ci_assort_rand_wbnu
 
 
-##assortment from group permutations.
-
+#####social differentiation from group permutations.
+##*NOTE* This particular analysis requires importing the results from network permutations from Supplemental Code 4
 #load the permutation results
 load("dowo_results_20201001.rdata")
 load("wbnu_results_20201001.rdata")
@@ -89,7 +89,7 @@ quantile(cv_dowo_rand, probs=c(0.025, 0.975))
 cv_wbnu_emp=cv(E(wbnu_net)$weight)
 cv_wbnu_rand=sapply(wbnuperm.adjs, function(y) cv(y))
 quantile(cv_wbnu_rand, probs=c(0.025, 0.975))
-
+########
 
 ## *Note* Results Part 2: "Effect of overnight temperature on foraging activity", is in supplementalcode1
 
@@ -134,7 +134,7 @@ for(i in 2:44){
 
 simmat <- as.matrix(simil(mat_final, by_rows = FALSE))
 
-#write.csv(simmat, "simmat.csv", row.names=F)
+write.csv(simmat, "simmat.csv", row.names=F) #save the output for use in Supplemental Code 4: Null Model Test
 
 #########Spatial Overlap Matrix
 ### summarise number of visits at each feeder for each bird
@@ -152,7 +152,7 @@ fin <- as.data.frame(mapply("/", logsums[-1], y))
 ### make correlation/similarity matrix
 logmat <- as.matrix(simil(fin, by_rows = FALSE))
 
-#write.csv(logmat, "logmat.csv", row.names=F)
+write.csv(logmat, "logmat.csv", row.names=F) #save the output for use in Supplemental Code 4: Null Model Test
 
 ### match up the rownames for each of the matrices so they are all in the same order
 dowosim=simmat[match(rownames(dowoadj), rownames(simmat)), match(rownames(dowoadj), rownames(simmat))] 
