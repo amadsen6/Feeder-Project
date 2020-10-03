@@ -1,8 +1,11 @@
-#### Analysis code, Part 1 for Madsen, Vander Meiden & Shizuka: Social partners and temperature jointly affect morning foraging activity of small birds in winter#####
+#### Supplemental Code for Madsen, Vander Meiden & Shizuka: Social partners and temperature jointly affect morning foraging activity of small birds in winter#####
+### PART 1: Temperature Analyses#####
 
 #generates stats for analysis of feeder visits and temperature
 #generates Figure 2 & Supplemental Figure 3 & 4
 
+
+#######required libraries
 require(tidyverse)
 require(lubridate)
 require(mgcv)
@@ -10,15 +13,16 @@ require(lme4)
 library(rsq)
 library(MuMIn)
 library(arm) 
+#####
 
+##load visitation data
+load("all_visits.dat") #loads 'all_visits' dataframe
 
-##data
-load("all_visits.dat")
-load("weather.dat")
-#dat=read.csv("Supplementaldata_morningvisits.csv")
-
-weather$Date <- as.Date(weather$Date, format = "%m/%d/%Y")
-weather <- weather %>%
+##import raw weather data, then summarize it into nightly low temperature
+weather.dat=read.csv("weather_raw.csv")
+weather <- weather.dat %>%
+  mutate(Date=mdy(Date)) %>%
+  mutate(datetime=mdy_hm(date_time)) %>%
   mutate(Hour = hour(datetime)) %>%
   filter(Hour >= 19 | Hour <= 4) %>%
   mutate(Lagdate = ifelse(Hour <= 4, paste0(lag(Date)), paste0(Date)))  %>%
@@ -27,13 +31,9 @@ weather <- weather %>%
   ungroup() %>%
   mutate(index = as.numeric(Date-min(Date)+1))
 
-
-demo <- read.csv("RFID_Records_fixed.csv")
-demo <- demo %>%
-  dplyr::select(-Date) %>%
-  filter(Species != "SCJU")
-
-
+#import individual bird data
+birds <- read.csv("RFID_Records_filtered.csv")
+birds = birds %>% dplyr::select(-Date)
 
 ## Species Models for DOWO and WBNU
 morn_visits_to_publish <- all_visits %>%
@@ -44,13 +44,13 @@ morn_visits_to_publish <- all_visits %>%
   summarise(sumvisits = n()) %>%
   ungroup() %>%
   left_join(weather, by = "Date") %>%
-  left_join(demo, by = "RFID") %>%
-  dplyr::select(Date, RFID, Species, Weight, Tarsus, Wing, Sex, Age, Culmen, nightlows, sumvisits) %>%
+  left_join(birds, by = "RFID") %>%
+  dplyr::select(Date, RFID, Species, Weight, Sex, nightlows, sumvisits) %>%
   filter(Date < "2019-03-11" & Date > "2019-01-25") %>%
   filter(Species == "DOWO" | Species == "WBNU") %>%
   dplyr::select(Date, RFID, Species, Sex, sumvisits,nightlows)
 
-morn_visits_to_publish$RFID <- as.factor(morn_visits$RFID)
+morn_visits_to_publish$RFID <- as.factor(morn_visits_to_publish$RFID)
 
 
 md <- gamm(sumvisits ~ s(nightlows, fx = FALSE, bs = "tp") + s(RFID, bs = "re"),
@@ -68,8 +68,6 @@ summary(mw$lme)
 plot(mw$gam)
 
 ### species level LMMs
-
-
 test_dowo <- glmer(sumvisits ~ scale(nightlows) + (1|RFID), data = morn_visits_to_publish %>% filter(Species == "DOWO"), family = "poisson")
 
 

@@ -1,12 +1,16 @@
-#### Analysis code, Part 1 for Madsen, Vander Meiden & Shizuka: Social partners and temperature jointly affect morning foraging activity of small birds in winter#####
+#### Supplemental Code for Madsen, Vander Meiden & Shizuka: Social partners and temperature jointly affect morning foraging activity of small birds in winter#####
 
+### PART 3: Rest of the analyses#####
+
+#generates stats for analysis of feeder visits and temperature
+#generates Figure 2 & Supplemental Figure 3 & 4
 #generates network plots for Figure 1
 #generates similarity matrix (simmat.csv) and spatial overlap matrix (logmat.csv)
 #measures assortment and social differentiation
 #MRQAP analysis to look at effect of network + spatial overlap on activity similarity
 #Mixed-model analysis on joint effects of social partners' activity and weather
 
-
+#required libraries
 library(asnipe)
 library(igraph)
 library(assortnet)
@@ -18,8 +22,8 @@ library(lmerTest)
 library(MuMIn)
 
 #import Gaussian Mixture Model Results
-dowo_gmm=readRDS("conspecificDOWOflocks_v2.rds")
-wbnu_gmm=readRDS("conspecificWBNUflocks_v2.rds")
+dowo_gmm=readRDS("conspecificDOWOflocks_final.rds")
+wbnu_gmm=readRDS("conspecificWBNUflocks_final.rds")
 
 #extract group-by-individual matrices
 dowo_gbi=dowo_gmm$gbi
@@ -30,11 +34,10 @@ dowo_net=graph_from_adjacency_matrix(get_network(dowo_gbi), mode="undirected", w
 wbnu_net=graph_from_adjacency_matrix(get_network(wbnu_gbi), mode="undirected", weighted=T)
 
 #import individual attributes data & match up with network vertices
-indivs=read.csv("RFID_Records_fixed.csv")
+indivs=read.csv("RFID_Records_filtered.csv")
 
 V(dowo_net)$sex=indivs[match(V(dowo_net)$name, indivs$RFID),"Sex"]
 V(wbnu_net)$sex=indivs[match(V(wbnu_net)$name, indivs$RFID),"Sex"]
-V(dowo_net)$age=indivs[match(V(dowo_net)$name, indivs$RFID),"Age"]
 
 #make network plots for Figure 1
 sex_color=data.frame(sex=c("F", "M", "U"), color=c("yellow", "purple", "white"))
@@ -72,21 +75,19 @@ ci_assort_rand_wbnu
 
 
 ##assortment from group permutations.
+
+#load the permutation results
 load("dowo_results_20201001.rdata")
-#load("wbnu_results_20190814.rdat")
+load("wbnu_results_20201001.rdata")
 # 
 
 cv=function(x) sd(x)/mean(x)
 cv_dowo_emp=cv(E(dowo_net)$weight)
 cv_dowo_rand=sapply(dowoperm.adjs, function(y) cv(y))
-hist(cv_dowo_rand, xlim=c(0.65, 1.3))
-lines(c(cv_dowo_emp, cv_dowo_emp), c(0,200), lty=2, col="red", lwd=2)
 quantile(cv_dowo_rand, probs=c(0.025, 0.975))
 
 cv_wbnu_emp=cv(E(wbnu_net)$weight)
 cv_wbnu_rand=sapply(wbnuperm.adjs, function(y) cv(y))
-hist(cv_wbnu_rand, xlim=c(0.8, 2.2))
-lines(c(cv_wbnu_emp, cv_wbnu_emp), c(0,200), lty=2, col="red", lwd=2)
 quantile(cv_wbnu_rand, probs=c(0.025, 0.975))
 
 
@@ -95,6 +96,8 @@ quantile(cv_wbnu_rand, probs=c(0.025, 0.975))
 ###########Results Part 3: Effect of social network on similarity in foraging activity
 
 ###MRQAP
+
+#get adjacency matrices from the group-by-individual matrices
 dowoadj=get_network(dowo_gbi)
 wbnuadj=get_network( wbnu_gbi)
 
@@ -132,6 +135,7 @@ for(i in 2:44){
 simmat <- as.matrix(simil(mat_final, by_rows = FALSE))
 
 #write.csv(simmat, "simmat.csv", row.names=F)
+
 #########Spatial Overlap Matrix
 ### summarise number of visits at each feeder for each bird
 vis <- all_visits %>%
@@ -147,11 +151,12 @@ fin <- as.data.frame(mapply("/", logsums[-1], y))
 
 ### make correlation/similarity matrix
 logmat <- as.matrix(simil(fin, by_rows = FALSE))
+
 #write.csv(logmat, "logmat.csv", row.names=F)
 
-#match up the rownames for each of the matrices so they are all in the same order
-dowosim=simmat[match(rownames(dowoadj), rownames(simmat)), match(rownames(dowoadj), rownames(simmat))] #sort the activity correlation matrix so rows/columns match adjacency matrix
-dowospat=logmat[match(rownames(dowoadj), rownames(logmat)), match(rownames(dowoadj), rownames(logmat))] #sort spatial correlation matrix so rows/columns match adjacency matrix. 
+### match up the rownames for each of the matrices so they are all in the same order
+dowosim=simmat[match(rownames(dowoadj), rownames(simmat)), match(rownames(dowoadj), rownames(simmat))] 
+dowospat=logmat[match(rownames(dowoadj), rownames(logmat)), match(rownames(dowoadj), rownames(logmat))] 
 
 #same for WBNU
 wbnusim=simmat[match(rownames(wbnuadj), rownames(simmat)), match(rownames(wbnuadj), rownames(simmat))]
@@ -187,8 +192,6 @@ wbnuspat.norm=normalize_matrix(wbnuspat)
 wbnu.mrqap.norm=mrqap.dsp(wbnusim.norm~wbnuadj.norm+wbnuspat.norm)
 wbnu.mrqap.norm
 
-wbnumetadata.filt=wbnu_gmm$metadata[which(rowSums(wbnugbi)>0),] #remove the same groups in the group metadata
-
 ###Results Part 4: Joint effects of temperature and social factors on foraging activity
 
 ##dowo
@@ -197,7 +200,6 @@ dowovisits.mat=as.matrix(dowovisits)
 
 dowoadj.bin=dowoadj
 dowoadj.bin[which(dowoadj.bin>0)]=1
-colSums(dowoadj.bin[1,]*t(dowovisits.mat), na.rm=T)
 
 dowoadj.norm.row=t(apply(dowoadj, 1, function(x) x/sum(x, na.rm=T)))
 dowo.friend.activity=apply(dowoadj.norm.row, 1, function(x) colSums(x*t(dowovisits.mat), na.rm=T))
