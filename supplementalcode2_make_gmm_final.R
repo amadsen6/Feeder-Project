@@ -1,7 +1,11 @@
-### Re-doing the gmmevents function...
+#### Supplemental Code for Madsen, Vander Meiden & Shizuka: Social partners and temperature jointly affect morning foraging activity of small birds in winter#####
 
+### PART 2: Run Gaussian Mixture Model#####
+
+#runs Gaussian Mixture Model from all visitation data, then saves the output
+
+#required libraries
 library(tidyverse)
-library(stringr)
 library(asnipe)
 library(lubridate)
 
@@ -25,5 +29,5 @@ dat.wbnu <- all_visits %>%
 dowoflocks=gmmevents(dat.dowo$Timestamp, dat.dowo$RFID, dat.dowo$LoggerDate)
 wbnuflocks=gmmevents(dat.wbnu$Timestamp, dat.wbnu$RFID, dat.wbnu$LoggerDate)
 
-saveRDS(dowoflocks, "conspecificDOWOflocks_v2.rds")
-saveRDS(wbnuflocks, "conspecificWBNUflocks_v2.rds")
+saveRDS(dowoflocks, "conspecificDOWOflocks_final.rds")
+saveRDS(wbnuflocks, "conspecificWBNUflocks_final.rds")
