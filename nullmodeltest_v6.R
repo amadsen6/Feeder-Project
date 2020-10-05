@@ -7,7 +7,10 @@ library(iterators)
 library(foreach)
 library(parallel)
 library(doParallel)
-
+library(lubridate)
+library(tidyverse)
+library(reshape)
+load("all_visits.dat")
 #import files
 gmmDOWO=readRDS("conspecificDOWOflocks.rds") #import gmm results file. Will need this for permuting group-by-individual matrices.
 gmmWBNU=readRDS("conspecificWBNUflocks.rds") #import gmm results file. Will need this for permuting group-by-individual matrices.
@@ -21,11 +24,64 @@ wbnuadj=get_network(gbi_wbnu)
 
 diag(dowoadj)=NA #make diagonal of adjacency matrices NA so we don't count these when normalizing values later.
 diag(wbnuadj)=NA #make diagonal of adjacency matrices NA so we don't count these when normalizing values later.
-simmat=as.matrix(read.csv("simmat.csv", row.names = 1, check.names = F)) #import correlation matrix of daily activity (Z-scores)
-logmat=as.matrix(read.csv("logmat.csv", row.names = 1, check.names = F)) #import correlation matrix of proportional feeder use
+
+## daily visits per individual
+dv <- all_visits %>%
+  filter(Date < "2019-03-11" & Date > "2019-01-25") %>%
+  group_by(RFID, Date) %>%
+  summarise(dailyvisits = n()) 
+
+## mean daily visits per individual
+ref <- dv %>%
+  group_by(RFID) %>%
+  summarise(mdv = mean(dailyvisits)) %>%
+  ungroup()
+
+## sd of daily visits
+dvsd <- sd(dv$dailyvisits)
+
+## build the df
+
+mat_ddm <- cast(dv, Date ~ RFID, value = "dailyvisits")
+mat_ddm[is.na(mat_ddm)] <- 0
+mat <- mat_ddm[2:46]/dvsd
+
+myvec <- (ref$mdv[match(names(mat_ddm[2:45]), ref$RFID)])/dvsd
+
+mat_final <- mat[1] - myvec[1]
+for(i in 2:44){
+  mat_temp <- mat[i] - myvec[i]
+  mat_final <- cbind(mat_final, mat_temp)
+}
+#mat_final <- cbind(mat_ddm$Date, mat_final)
+
+### Similarity Matrix
+## how similar are individuals' daily visitation z-scores?
+
+simmat <- as.matrix(simil(mat_final, by_rows = FALSE))
+
+#########Spatial Overlap Matrix
+### summarise number of visits at each feeder for each bird
+vis <- all_visits %>%
+  group_by(Logger, RFID) %>%
+  summarise(logvis = n()) %>%
+  ungroup()
+
+### reshape data frame and calculate proportion of visits at each feeder
+logsums <- cast(vis, Logger ~ RFID, value = "logvis")
+logsums[is.na(logsums)] <- 0
+y = colSums(logsums)
+fin <- as.data.frame(mapply("/", logsums[-1], y))
+
+### make correlation/similarity matrix
+require(proxy)
+logmat <- as.matrix(simil(fin, by_rows = FALSE))
+
+
 
 dowosim=simmat[match(rownames(dowoadj), rownames(simmat)), match(rownames(dowoadj), rownames(simmat))] #sort the activity correlation matrix so rows/columns match adjacency matrix
 dowospat=logmat[match(rownames(dowoadj), rownames(logmat)), match(rownames(dowoadj), rownames(logmat))] #sort spatial correlation matrix so rows/columns match adjacency matrix. 
+
 
 #same for WBNU
 wbnusim=simmat[match(rownames(wbnuadj), rownames(simmat)), match(rownames(wbnuadj), rownames(simmat))]
@@ -85,7 +141,7 @@ normalize_matrix=function(m){
 library(foreach)
 library(parallel)
 library(doParallel)
-times=10
+times=1000
 n.cores=detectCores()
 system.time({
   registerDoParallel(n.cores)
@@ -113,12 +169,32 @@ ci.dowo #confidence interval of null model -- this likely will not overlap the e
 
 
 save(dowoperm.adjs, dowoperm.mrqap.coefs, p.dowo, ci.dowo, file="dowo_results_20201001_rdat")
+###WBNU
+wbnu.ids=rownames(wbnuadj)
+
+wbnugbi=gbi_wbnu[,which(colnames(gbi_wbnu)%in%wbnu.ids)] #get gbi with only wbnus
+wbnugbi.filt=wbnugbi[which(rowSums(wbnugbi)>0),] #remove groups that no wbnus belong to.
+
+wbnumetadata.filt=gmmWBNU$metadata[which(rowSums(wbnugbi)>0),] #remove the same groups in the group metadata
+
+#using the filtered metadata, we can extract the feeder & date of the group. This will be useful when we constrain the permutation by day
+wbnu.locations=as.numeric(as.factor(substr(wbnumetadata.filt$Location, start=1, stop=8)))
+wbnu.days=as.numeric(as.factor(substr(wbnumetadata.filt$Location, start=10, stop=13)))
+
+
+#store the results of MRQAP with empirical network
+wbnusim.norm=normalize_matrix(wbnusim)
+wbnuadj.norm=normalize_matrix(wbnuadj)
+wbnuspat.norm=normalize_matrix(wbnuspat)
+
+emp.mod.wbnu=mrqap.dsp(wbnusim.norm~wbnuadj.norm+wbnuspat.norm)
+emp.coef.wbnu=emp.mod.wbnu$coefficients[2]
 
 ### WBNU with parallel processing!
 library(foreach)
 library(parallel)
 library(doParallel)
-times=10
+times=1000
 n.cores=detectCores()
 system.time({
   registerDoParallel(n.cores)
@@ -145,4 +221,4 @@ ci.wbnu=quantile(wbnuperm.mrqap.coefs, probs=c(0.025, 0.975))
 ci.wbnu #confidence interval of null model -- this likely will not overlap the empirical coefficient value
 
 
-#save(wbnuperm.adjs, wbnuperm.mrqap.coefs, p.wbnu, ci.wbnu, file="wbnu_results_20201001_rdat")
+save(wbnuperm.adjs, wbnuperm.mrqap.coefs, p.wbnu, ci.wbnu, file="wbnu_results_20201001_rdat")
