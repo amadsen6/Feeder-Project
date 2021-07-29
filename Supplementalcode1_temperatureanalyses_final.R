@@ -94,6 +94,7 @@ pana <- ggplot(md_pred) +
   labs(x = "", y = "", title = "Downy Woodpeckers") +
   theme(plot.title = element_text(size = 20, hjust = 0.5))
 
+pana
 ## Panel B
 mw_temp <- morn_visits_to_publish %>%
   filter(Species == "WBNU")
